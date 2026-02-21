@@ -2,7 +2,9 @@ import {
     Button,
     VerticalBox,
     ListView,
-    HorizontalBox, LineEdit,
+    HorizontalBox,
+    LineEdit,
+    StandardTableView,
 } from "std-widgets.slint";
 
 struct Rect {
@@ -23,55 +25,40 @@ struct FileModel {
     size: string,
 }
 
-component EntryListView {
-    in-out property <[EntryModel]> items: [];
+component EntryListView inherits StandardTableView {
+    in-out property <[[StandardListViewItem]]> items: [];
 
-    VerticalBox {
-        Text {
-            text: "banana";
-        }
+    width: 100%;
+    height: 100%;
 
-        ListView {
-            for data in items: Rectangle {
-                height: 30px;
-                width: parent.width;
-                Text {
-                    x: 0;
-                    text: data.name;
-                }
-            }
-        }
-    }
+    columns: [
+        { title: "Name" },
+        { title: "Path" },
+        { title: "Size", width: 80px, horizontal-stretch: 0 }
+    ];
+    rows: items;
 }
 
 component FileListView {
-    in-out property <[FileModel]> items: [];
+    in-out property <[[StandardListViewItem]]> items: [];
 
-    VerticalBox {
-        Text {
-            text: "Pear";
-        }
-
-        ListView {
-            for data in items: Rectangle {
-                height: 30px;
-                width: parent.width;
-                Text {
-                    x: 0;
-                    text: data.name;
-                }
-            }
-        }
+    StandardTableView {
+        width: 100%;
+        height: 100%;
+        columns: [{ title: "Name" }, { title: "Path" }, { title: "Size", width: 80px }];
+        rows: items;
     }
 }
 
 export component AppWindow inherits Window {
     in-out property <string> search-text;
-    in-out property <[EntryModel]> items: [];
-    in-out property <[FileModel]> file-items: [];
+    in-out property <[[StandardListViewItem]]> items: [];
+    in-out property <[[StandardListViewItem]]> file-items: [];
 
     callback reload();
+    callback reload-done();
     callback search-text-changed(string);
+    callback entry-changed(int);
 
     VerticalBox {
         HorizontalBox {
@@ -98,6 +85,10 @@ export component AppWindow inherits Window {
 
         EntryListView {
             items: items;
+
+            current-row-changed(current-row) => {
+                root.entry-changed(current-row);
+            }
         }
 
         FileListView {
