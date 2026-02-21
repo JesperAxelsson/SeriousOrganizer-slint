@@ -1,0 +1,107 @@
+import {
+    Button,
+    VerticalBox,
+    ListView,
+    HorizontalBox, LineEdit,
+} from "std-widgets.slint";
+
+struct Rect {
+    text: string,
+    color: color,
+    bg: color,
+}
+
+struct EntryModel {
+    name: string,
+    path: string,
+    size: string,
+}
+
+struct FileModel {
+    name: string,
+    path: string,
+    size: string,
+}
+
+component EntryListView {
+    in-out property <[EntryModel]> items: [];
+
+    VerticalBox {
+        Text {
+            text: "banana";
+        }
+
+        ListView {
+            for data in items: Rectangle {
+                height: 30px;
+                width: parent.width;
+                Text {
+                    x: 0;
+                    text: data.name;
+                }
+            }
+        }
+    }
+}
+
+component FileListView {
+    in-out property <[FileModel]> items: [];
+
+    VerticalBox {
+        Text {
+            text: "Pear";
+        }
+
+        ListView {
+            for data in items: Rectangle {
+                height: 30px;
+                width: parent.width;
+                Text {
+                    x: 0;
+                    text: data.name;
+                }
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    in-out property <string> search-text;
+    in-out property <[EntryModel]> items: [];
+    in-out property <[FileModel]> file-items: [];
+
+    callback reload();
+    callback search-text-changed(string);
+
+    VerticalBox {
+        HorizontalBox {
+            // Text {
+            //     text: "Search";
+            // }
+
+            LineEdit {
+                // text: search-text;
+                placeholder-text: "Search";
+
+                edited(text) => {
+                    root.search-text-changed(text);
+                }
+            }
+
+            Button {
+                text: "Reload";
+                clicked => {
+                    root.reload();
+                }
+            }
+        }
+
+        EntryListView {
+            items: items;
+        }
+
+        FileListView {
+            items: file-items;
+        }
+    }
+}

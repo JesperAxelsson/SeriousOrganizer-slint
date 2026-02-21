@@ -1,0 +1,27 @@
+export component MyComponent {
+    width: 400px; height: 400px;
+
+    Rectangle {
+        background: #151515;
+    }
+
+    ta := TouchArea {}
+
+    myRect := Rectangle {
+        x: ta.mouse-x;
+        y: ta.mouse-y;
+        width: 60px;
+        height: 60px;
+        background: ta.pressed ? orange : skyblue;
+        Text {
+            x: 5px; y: 5px;
+            text: "x: " + myRect.x / 1px;
+            color: white;
+        }
+        Text {
+            x: 5px; y: 20px;
+            text: "y: " + myRect.y / 1px;
+            color: white;
+        }
+    }
+}
