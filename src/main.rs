@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
 
-use serious_organizer_lib::models::DirEntry;
+use serious_organizer_lib::models::{DirEntry, File};
 use slint::{Model, ModelNotify, ModelRc, StandardListViewItem, VecModel, Weak};
 
 slint::include_modules!();
@@ -43,7 +43,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Setup Entry table
     ui.set_items(ModelRc::new(lens_model.clone()));
     ui.on_entry_changed({
-        // let ui_handle = ui.as_weak();
+        let ui_handle = ui.as_weak();
         let lens = lens.clone();
         move |entry_ix| {
             // let entry = lens.get_dir_entry(entry_ix);
@@ -51,7 +51,18 @@ fn main() -> Result<(), slint::PlatformError> {
                 .borrow()
                 .get_file_count(entry_ix as usize)
                 .unwrap_or_default();
-            println!("Entry ix: {entry_ix} count: {file_count}");
+
+            let ui_handle = ui_handle.unwrap();
+            let cur_ix = ui_handle.get_current_entry();
+            let entry_id = if cur_ix >= 0 {
+                lens.borrow().get_dir_entry(cur_ix as usize).map(|e| e.id)
+            } else {
+                None
+            };
+            println!(
+                "Entry ix: {entry_ix} count: {file_count} cur: {:?}",
+                entry_id // ui_handle.upgrade().unwrap().get_current_entry()
+            );
         }
     });
 
@@ -60,11 +71,38 @@ fn main() -> Result<(), slint::PlatformError> {
         let ui_handle = ui.as_weak();
         let lens = lens.clone();
         let lens_model_c = lens_model.clone();
+
         move |text| {
-            println!("Search text: {text}");
-            let _ui = ui_handle.unwrap();
+            let ui_handle = ui_handle.unwrap();
+
+            // Get current entry id
+            let cur_ix = ui_handle.get_current_entry();
+            let entry_id = if cur_ix >= 0 {
+                lens.borrow().get_dir_entry(cur_ix as usize).map(|e| e.id)
+            } else {
+                None
+            };
+
+            // Search
+            println!("Search text: {text} {:?}", entry_id);
             lens.borrow_mut().update_search_text(&text);
             lens_model_c.update();
+
+            // Check if current entry is still present and select it
+            let mut new_entry_id = None;
+            if let Some(entry_id) = entry_id {
+                // Is the old entry filtered out?
+                if let Some(new_ix) = lens.borrow().entry_id_to_ix(entry_id) {
+                    ui_handle.set_current_entry(new_ix as i32);
+                    new_entry_id = Some(new_ix as i32);
+                } else {
+                    // Reset selection
+                    ui_handle.set_current_entry(-1);
+                    new_entry_id = Some(-1);
+                }
+            }
+
+            println!("Search done, current entry ix: {:?}", new_entry_id);
         }
     });
 
@@ -126,7 +164,7 @@ impl Model for LensModelList {
     }
 
     fn row_data(&self, row: usize) -> Option<Self::Data> {
-        println!("Print row data {row}");
+        // println!("Print row data {row}");
         if let Some(entry) = self.lens.borrow().get_dir_entry(row) {
             let items = vec![
                 StandardListViewItem::from(entry.name.as_str()),
@@ -195,4 +233,16 @@ fn format_size(bytes: i64) -> String {
     } else {
         format!("{} B", bytes)
     }
+}
+
+pub fn convert_file_to_model(file: File) -> ModelRc<StandardListViewItem> {
+    let items = vec![
+        StandardListViewItem::from(file.name.as_str()),
+        StandardListViewItem::from(file.path.as_str()),
+        StandardListViewItem::from(format_size(file.size).as_str()),
+    ];
+
+    let row_model = Rc::new(VecModel::from(items));
+
+    ModelRc::from(row_model)
 }

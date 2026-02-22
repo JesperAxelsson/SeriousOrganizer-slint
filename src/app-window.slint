@@ -7,36 +7,20 @@ import {
     StandardTableView,
 } from "std-widgets.slint";
 
-struct Rect {
-    text: string,
-    color: color,
-    bg: color,
-}
-
-struct EntryModel {
-    name: string,
-    path: string,
-    size: string,
-}
-
-struct FileModel {
-    name: string,
-    path: string,
-    size: string,
-}
-
 component EntryListView inherits StandardTableView {
+    in-out property <int> current-entry;
     in-out property <[[StandardListViewItem]]> items: [];
 
     width: 100%;
     height: 100%;
 
+    current-row <=> root.current-entry;
     columns: [
         { title: "Name" },
         { title: "Path" },
         { title: "Size", width: 80px, horizontal-stretch: 0 }
     ];
-    rows: items;
+    rows: root.items;
 }
 
 component FileListView {
@@ -52,6 +36,7 @@ component FileListView {
 
 export component AppWindow inherits Window {
     in-out property <string> search-text;
+    in-out property <int> current-entry;
     in-out property <[[StandardListViewItem]]> items: [];
     in-out property <[[StandardListViewItem]]> file-items: [];
 
@@ -62,12 +47,7 @@ export component AppWindow inherits Window {
 
     VerticalBox {
         HorizontalBox {
-            // Text {
-            //     text: "Search";
-            // }
-
             LineEdit {
-                // text: search-text;
                 placeholder-text: "Search";
 
                 edited(text) => {
@@ -84,6 +64,7 @@ export component AppWindow inherits Window {
         }
 
         EntryListView {
+            current-entry <=> current-entry;
             items: items;
 
             current-row-changed(current-row) => {
