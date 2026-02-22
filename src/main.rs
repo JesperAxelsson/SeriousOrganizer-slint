@@ -7,14 +7,21 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
 
 use serious_organizer_lib::models::{DirEntry, File};
-use slint::{Model, ModelNotify, ModelRc, StandardListViewItem, VecModel, Weak};
+use slint::{ModelRc, StandardListViewItem, VecModel, Weak};
 
 slint::include_modules!();
 
 use serious_organizer_lib::dir_search;
 use serious_organizer_lib::lens::Lens;
 
+use crate::entry_model_list::LensModelList;
+use crate::file_model_list::FileModelList;
+use crate::helper::format_size;
+
 mod config;
+mod entry_model_list;
+mod file_model_list;
+mod helper;
 
 enum LensMessage {
     ReloadResult(Vec<(i32, DirEntry)>),
@@ -31,10 +38,8 @@ fn main() -> Result<(), slint::PlatformError> {
     //     foo.add_location("Banana", "/home/jesper/Videos");
     // }
 
-    let lens_model = Rc::new(LensModelList {
-        lens: lens.clone(),
-        notify: ModelNotify::default(),
-    });
+    let lens_model = Rc::new(LensModelList::new(lens.clone()));
+    let _file_model = Rc::new(FileModelList::new(lens.clone()));
 
     let ui = AppWindow::new()?;
 
@@ -46,23 +51,27 @@ fn main() -> Result<(), slint::PlatformError> {
         let ui_handle = ui.as_weak();
         let lens = lens.clone();
         move |entry_ix| {
-            // let entry = lens.get_dir_entry(entry_ix);
             let file_count = lens
                 .borrow()
                 .get_file_count(entry_ix as usize)
                 .unwrap_or_default();
 
             let ui_handle = ui_handle.unwrap();
-            let cur_ix = ui_handle.get_current_entry();
-            let entry_id = if cur_ix >= 0 {
-                lens.borrow().get_dir_entry(cur_ix as usize).map(|e| e.id)
-            } else {
-                None
-            };
-            println!(
-                "Entry ix: {entry_ix} count: {file_count} cur: {:?}",
-                entry_id // ui_handle.upgrade().unwrap().get_current_entry()
-            );
+
+            if let Some(files) = lens.borrow().get_dir_files(entry_ix as usize) {
+                println!("Files: {:?}", files.len());
+            }
+
+            // let cur_ix = ui_handle.get_current_entry();
+            // let entry_id = if cur_ix >= 0 {
+            //     lens.borrow().get_dir_entry(cur_ix as usize).map(|e| e.id)
+            // } else {
+            //     None
+            // };
+            // println!(
+            //     "Entry ix: {entry_ix} count: {file_count} cur: {:?}",
+            //     entry_id // ui_handle.upgrade().unwrap().get_current_entry()
+            // );
         }
     });
 
@@ -136,9 +145,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 .map(|e| (e.id, e.path.clone()))
                 .collect();
 
-            let ui_handle = ui_weak.unwrap();
-            update_lens(tx.clone(), ui_handle.as_weak(), paths);
-
+            update_lens(tx.clone(), ui_weak.clone(), paths);
             lens_model_c.update();
         }
     });
@@ -146,59 +153,6 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.run()?;
 
     Ok(())
-}
-
-pub struct LensModelList {
-    pub lens: Rc<RefCell<Lens>>,
-    notify: ModelNotify,
-}
-
-impl Model for LensModelList {
-    type Data = ModelRc<StandardListViewItem>;
-
-    fn row_count(&self) -> usize {
-        let count = self.lens.borrow().get_dir_count();
-
-        // println!("Row count {count}");
-        count
-    }
-
-    fn row_data(&self, row: usize) -> Option<Self::Data> {
-        // println!("Print row data {row}");
-        if let Some(entry) = self.lens.borrow().get_dir_entry(row) {
-            let items = vec![
-                StandardListViewItem::from(entry.name.as_str()),
-                StandardListViewItem::from(entry.path.as_str()),
-                StandardListViewItem::from(format_size(entry.size).as_str()),
-            ];
-
-            let row_model = Rc::new(VecModel::from(items));
-
-            Some(ModelRc::from(row_model))
-        } else {
-            None
-        }
-    }
-
-    fn set_row_data(&self, _row: usize, _data: Self::Data) {
-        // self.array.borrow_mut()[row] = data;
-        // self.notify.row_changed(row);
-    }
-
-    fn model_tracker(&self) -> &dyn slint::ModelTracker {
-        &self.notify
-    }
-
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-}
-
-impl LensModelList {
-    pub fn update(&self) {
-        println!("Reset the thing!");
-        self.notify.reset();
-    }
 }
 
 fn update_lens(tx: Sender<LensMessage>, ui: Weak<AppWindow>, paths: Vec<(i32, String)>) {
@@ -217,22 +171,6 @@ fn update_lens(tx: Sender<LensMessage>, ui: Weak<AppWindow>, paths: Vec<(i32, St
         })
         .unwrap();
     });
-}
-
-fn format_size(bytes: i64) -> String {
-    const KB: i64 = 1024;
-    const MB: i64 = KB * 1024;
-    const GB: i64 = MB * 1024;
-
-    if bytes >= GB {
-        format!("{:>10.2} GB", bytes as f64 / GB as f64)
-    } else if bytes >= MB {
-        format!("{:>10.1} MB", bytes as f64 / MB as f64)
-    } else if bytes >= KB {
-        format!("{:>10.0} KB", bytes as f64 / KB as f64)
-    } else {
-        format!("{} B", bytes)
-    }
 }
 
 pub fn convert_file_to_model(file: File) -> ModelRc<StandardListViewItem> {
