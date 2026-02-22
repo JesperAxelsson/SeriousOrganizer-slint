@@ -3,29 +3,24 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::mpsc::{Receiver, Sender, channel};
-use std::thread;
 
-use serious_organizer_lib::models::{DirEntry, File};
-use slint::{ModelRc, StandardListViewItem, VecModel, Weak};
+use serious_organizer_lib::models::File;
+use slint::{ModelRc, StandardListViewItem, VecModel};
 
 slint::include_modules!();
 
-use serious_organizer_lib::dir_search;
 use serious_organizer_lib::lens::Lens;
 
 use crate::entry_model_list::LensModelList;
 use crate::file_model_list::FileModelList;
 use crate::helper::format_size;
+use crate::reload_controller::ReloadController;
 
 mod config;
 mod entry_model_list;
 mod file_model_list;
 mod helper;
-
-enum LensMessage {
-    ReloadResult(Vec<(i32, DirEntry)>),
-}
+mod reload_controller;
 
 fn main() -> Result<(), slint::PlatformError> {
     println!("Hello, world!");
@@ -39,9 +34,12 @@ fn main() -> Result<(), slint::PlatformError> {
     // }
 
     let lens_model = Rc::new(LensModelList::new(lens.clone()));
-    let _file_model = Rc::new(FileModelList::new(lens.clone()));
+    let file_model = Rc::new(FileModelList::new(lens.clone()));
 
     let ui = AppWindow::new()?;
+
+    // Setup reload controls, we don't need to keep a variable around
+    ReloadController::new(ui.as_weak(), lens_model.clone());
 
     // ===== Setup message queue =====
 
@@ -50,17 +48,17 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.on_entry_changed({
         let ui_handle = ui.as_weak();
         let lens = lens.clone();
+        let file_model = file_model.clone();
         move |entry_ix| {
-            let file_count = lens
-                .borrow()
-                .get_file_count(entry_ix as usize)
-                .unwrap_or_default();
+            // let ui_handle = ui_handle.unwrap();
 
-            let ui_handle = ui_handle.unwrap();
-
-            if let Some(files) = lens.borrow().get_dir_files(entry_ix as usize) {
-                println!("Files: {:?}", files.len());
+            if entry_ix >= 0 {
+                // file_model.set_entry_id(entry_id);
             }
+
+            // if let Some(files) = lens.borrow().get_dir_files(entry_ix as usize) {
+            //     println!("Files: {:?}", files.len());
+            // }
 
             // let cur_ix = ui_handle.get_current_entry();
             // let entry_id = if cur_ix >= 0 {
@@ -115,62 +113,9 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
-    // Reloading
-    let (tx, rx): (Sender<LensMessage>, Receiver<LensMessage>) = channel();
-    {
-        let lens_model = lens_model.clone();
-
-        ui.on_reload_done(move || {
-            while let Ok(msg) = rx.try_recv() {
-                match msg {
-                    LensMessage::ReloadResult(mut result) => {
-                        lens_model.lens.borrow_mut().update_data(&mut result);
-                        lens_model.update();
-                    }
-                }
-            }
-        });
-    }
-
-    ui.on_reload({
-        let lens_model_c = lens_model.clone();
-        let lens_c = lens.clone();
-        let ui_weak = ui.as_weak();
-
-        move || {
-            let paths = lens_c
-                .borrow()
-                .get_locations()
-                .iter()
-                .map(|e| (e.id, e.path.clone()))
-                .collect();
-
-            update_lens(tx.clone(), ui_weak.clone(), paths);
-            lens_model_c.update();
-        }
-    });
-
     ui.run()?;
 
     Ok(())
-}
-
-fn update_lens(tx: Sender<LensMessage>, ui: Weak<AppWindow>, paths: Vec<(i32, String)>) {
-    thread::spawn(move || {
-        println!("Locations: {:?}", paths);
-
-        let dir_s = dir_search::get_all_data(&paths);
-
-        tx.send(LensMessage::ReloadResult(dir_s))
-            .expect("Failed to send Lens Reload");
-
-        slint::invoke_from_event_loop(move || {
-            if let Some(ui) = ui.upgrade() {
-                ui.invoke_reload_done();
-            }
-        })
-        .unwrap();
-    });
 }
 
 pub fn convert_file_to_model(file: File) -> ModelRc<StandardListViewItem> {
