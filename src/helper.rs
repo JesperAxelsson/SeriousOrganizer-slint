@@ -10,6 +10,6 @@ pub fn format_size(bytes: i64) -> String {
     } else if bytes >= KB {
         format!("{:>10.0} KB", bytes as f64 / KB as f64)
     } else {
-        format!("{} B", bytes)
+        format!("{:>10} B", bytes)
     }
 }

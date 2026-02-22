@@ -4,8 +4,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use serious_organizer_lib::models::File;
-use slint::{ModelRc, StandardListViewItem, VecModel};
+use slint::ModelRc;
 
 slint::include_modules!();
 
@@ -13,7 +12,6 @@ use serious_organizer_lib::lens::Lens;
 
 use crate::entry_model_list::LensModelList;
 use crate::file_model_list::FileModelList;
-use crate::helper::format_size;
 use crate::reload_controller::ReloadController;
 
 mod config;
@@ -46,32 +44,14 @@ fn main() -> Result<(), slint::PlatformError> {
     // Setup Entry table
     ui.set_items(ModelRc::new(lens_model.clone()));
     ui.on_entry_changed({
-        let ui_handle = ui.as_weak();
-        let lens = lens.clone();
         let file_model = file_model.clone();
         move |entry_ix| {
-            // let ui_handle = ui_handle.unwrap();
-
-            if entry_ix >= 0 {
-                // file_model.set_entry_id(entry_id);
-            }
-
-            // if let Some(files) = lens.borrow().get_dir_files(entry_ix as usize) {
-            //     println!("Files: {:?}", files.len());
-            // }
-
-            // let cur_ix = ui_handle.get_current_entry();
-            // let entry_id = if cur_ix >= 0 {
-            //     lens.borrow().get_dir_entry(cur_ix as usize).map(|e| e.id)
-            // } else {
-            //     None
-            // };
-            // println!(
-            //     "Entry ix: {entry_ix} count: {file_count} cur: {:?}",
-            //     entry_id // ui_handle.upgrade().unwrap().get_current_entry()
-            // );
+            file_model.set_entry_ix(entry_ix);
         }
     });
+
+    // Setup File table
+    ui.set_file_items(ModelRc::new(file_model));
 
     // Searching
     ui.on_search_text_changed({
@@ -116,16 +96,4 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.run()?;
 
     Ok(())
-}
-
-pub fn convert_file_to_model(file: File) -> ModelRc<StandardListViewItem> {
-    let items = vec![
-        StandardListViewItem::from(file.name.as_str()),
-        StandardListViewItem::from(file.path.as_str()),
-        StandardListViewItem::from(format_size(file.size).as_str()),
-    ];
-
-    let row_model = Rc::new(VecModel::from(items));
-
-    ModelRc::from(row_model)
 }
