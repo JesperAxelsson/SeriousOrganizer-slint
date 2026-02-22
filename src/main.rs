@@ -31,6 +31,7 @@ fn main() -> Result<(), slint::PlatformError> {
     //     foo.add_location("Banana", "/home/jesper/Videos");
     // }
 
+    // Models
     let lens_model = Rc::new(LensModelList::new(lens.clone()));
     let file_model = Rc::new(FileModelList::new(lens.clone()));
 
@@ -48,6 +49,10 @@ fn main() -> Result<(), slint::PlatformError> {
         move |entry_ix| {
             file_model.set_entry_ix(entry_ix);
         }
+    });
+
+    ui.on_context_command(|command| {
+        println!("Got command: '{command}'");
     });
 
     // Setup File table

@@ -33,16 +33,63 @@ component FileListView inherits StandardTableView {
     rows: items;
 }
 
+component ContextMenu inherits PopupWindow {
+    width: 150px;
+    close-policy: PopupClosePolicy.close-on-click-outside;
+
+    callback context-command(string);
+
+    Rectangle {
+        background: white;
+        border-color: lightgray;
+        border-width: 1px;
+        drop-shadow-blur: 5px;
+        drop-shadow-color: #00000033;
+
+        VerticalLayout {
+            padding: 4px;
+
+            Rectangle {
+                height: 30px;
+                background: touch-open.has-hover ? #eeeeee : transparent;
+                Text {
+                    text: "Open file";
+                    x: 10px;
+                    vertical-alignment: center;
+                }
+
+                touch-open := TouchArea {
+                    clicked => {
+                        root.context-command("file-open");
+                    }
+                }
+            }
+        }
+    }
+}
+
 export component AppWindow inherits Window {
     in-out property <string> search-text;
     in-out property <int> current-entry;
     in-out property <[[StandardListViewItem]]> items: [];
     in-out property <[[StandardListViewItem]]> file-items: [];
 
+    property <length> menu-x;
+    property <length> menu-y;
+
     callback reload();
     callback reload-done();
     callback search-text-changed(string);
     callback entry-changed(int);
+    callback context-command(string);
+
+    context-menu := ContextMenu {
+        x: root.menu-x;
+        y: root.menu-y;
+        context-command(command) => {
+            root.context-command(command);
+        }
+    }
 
     VerticalBox {
         HorizontalBox {
@@ -68,6 +115,18 @@ export component AppWindow inherits Window {
 
             changed current-entry => {
                 root.entry-changed(root.current-entry);
+            }
+
+            row-pointer-event(row, event, position) => {
+                if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
+                    // root.menu-x = event.absolute-position.x;
+                    // root.menu-y = event.absolute-position.y;
+                    
+                    root.menu-x = self.absolute-position.x + position.x;
+                    root.menu-y = self.absolute-position.y + position.y;
+
+                    context-menu.show();
+                }
             }
         }
 
