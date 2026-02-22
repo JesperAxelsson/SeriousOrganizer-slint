@@ -67,8 +67,8 @@ export component AppWindow inherits Window {
             current-entry <=> current-entry;
             items: items;
 
-            current-row-changed(current-row) => {
-                root.entry-changed(current-row);
+            changed current-entry => {
+                root.entry-changed(root.current-entry);
             }
         }
 
