@@ -14,49 +14,7 @@ slint::include_modules!();
 use serious_organizer_lib::dir_search;
 use serious_organizer_lib::lens::Lens;
 
-#[cfg(debug_assertions)]
-fn get_dir_path() -> String {
-    ::std::env::current_exe()
-        .unwrap()
-        .with_file_name("test.sqlite3")
-        .to_string_lossy()
-        .to_string()
-}
-
-#[cfg(not(debug_assertions))]
-fn get_dir_path() -> String {
-    use directories::BaseDirs;
-    use std::fs::{self, File};
-
-    if let Some(base_dirs) = BaseDirs::new() {
-        let dir = base_dirs.data_dir();
-        let mut dir = dir.to_path_buf();
-        dir.push("SeriousOrganizer");
-        println!("Got base dir!");
-        fs::create_dir_all(&dir).expect(&format!(
-            "Failed to create data dir: {}",
-            dir.to_string_lossy()
-        ));
-
-        dir.push("Database.sqlite3");
-
-        if !dir.exists() {
-            File::create(&dir).expect(&format!(
-                "Failed to create db_file: {:?}",
-                dir.to_string_lossy()
-            ));
-        }
-
-        dir.to_string_lossy().to_string()
-    } else {
-        println!("No base dir! :'(");
-        ::std::env::current_exe()
-            .unwrap()
-            .with_file_name("test.sqlite3")
-            .to_string_lossy()
-            .to_string()
-    }
-}
+mod config;
 
 enum LensMessage {
     ReloadResult(Vec<(i32, DirEntry)>),
@@ -65,7 +23,7 @@ enum LensMessage {
 fn main() -> Result<(), slint::PlatformError> {
     println!("Hello, world!");
 
-    let db_path = get_dir_path();
+    let db_path = config::get_dir_path();
     println!("dbpath: {}", db_path);
     let lens = Rc::new(RefCell::new(Lens::new(&db_path)));
     // {
