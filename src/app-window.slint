@@ -7,6 +7,14 @@ import {
     StandardTableView,
 } from "std-widgets.slint";
 
+export struct LocationData {
+    id: int,
+    name: string,
+    path: string,
+    size_str: string,
+}
+    
+
 component EntryListView inherits StandardTableView {
     in-out property <int> current-entry;
     in-out property <[[StandardListViewItem]]> items: [];
@@ -69,19 +77,30 @@ component ContextMenu inherits PopupWindow {
 }
 
 export component AppWindow inherits Window {
+    // Search bar
     in-out property <string> search-text;
-    in-out property <int> current-entry;
-    in-out property <[[StandardListViewItem]]> items: [];
-    in-out property <[[StandardListViewItem]]> file-items: [];
-
-    property <length> menu-x;
-    property <length> menu-y;
-
     callback reload();
     callback reload-done();
     callback search-text-changed(string);
-    callback entry-changed(int);
+
+    // Tab handling
+    property <int> active-tab: 0;
+
+    // Context menu
+    property <length> menu-x;
+    property <length> menu-y;
     callback context-command(string);
+
+    // List actions
+    in-out property <int> current-entry;
+    in-out property <[[StandardListViewItem]]> items: [];
+    in-out property <[[StandardListViewItem]]> file-items: [];
+    callback entry-changed(int);
+
+    // Locations
+    callback add_location();
+    callback remove_location(int);
+    in property <[LocationData]> locations;
 
     context-menu := ContextMenu {
         x: root.menu-x;
@@ -92,46 +111,116 @@ export component AppWindow inherits Window {
     }
 
     VerticalBox {
+        // --- TAB BAR ---
         HorizontalBox {
-            LineEdit {
-                placeholder-text: "Search";
+            height: 5%;
 
-                edited(text) => {
-                    root.search-text-changed(text);
+            Button {
+                text: "Library";
+                clicked => {
+                    root.active-tab = 0;
                 }
             }
 
             Button {
-                text: "Reload";
+                text: "Locations Settings";
                 clicked => {
-                    root.reload();
+                    root.active-tab = 1;
                 }
             }
         }
 
-        EntryListView {
-            current-entry <=> current-entry;
-            items: items;
+        // --- VIEW 0: MAIN LIBRARY
+        if root.active-tab == 0: VerticalBox {
+            VerticalBox {
+                HorizontalBox {
+                    LineEdit {
+                        placeholder-text: "Search";
 
-            changed current-entry => {
-                root.entry-changed(root.current-entry);
-            }
+                        edited(text) => {
+                            root.search-text-changed(text);
+                        }
+                    }
 
-            row-pointer-event(row, event, position) => {
-                if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
+                    Button {
+                        text: "Reload";
+                        clicked => {
+                            root.reload();
+                        }
+                    }
+
+                    Button {
+                        text: "Locations";
+                        clicked => {
+                            root.reload();
+                        }
+                    }
+                }
+
+                EntryListView {
+                    current-entry <=> current-entry;
+                    items: items;
+
+                    changed current-entry => {
+                        root.entry-changed(root.current-entry);
+                    }
+
+                    row-pointer-event(row, event, position) => {
+                        if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
                     // root.menu-x = event.absolute-position.x;
                     // root.menu-y = event.absolute-position.y;
                     
                     root.menu-x = self.absolute-position.x + position.x;
-                    root.menu-y = self.absolute-position.y + position.y;
+                            root.menu-y = self.absolute-position.y + position.y;
 
-                    context-menu.show();
+                            context-menu.show();
+                        }
+                    }
+                }
+
+                FileListView {
+                    items: file-items;
                 }
             }
         }
 
-        FileListView {
-            items: file-items;
+        // --- VIEW 0: MAIN LIBRARY
+        if root.active-tab == 1: VerticalBox {
+            VerticalBox {
+                Text {
+                    text: "Settings";
+                }
+
+                Button {
+                    text: "Add Location";
+                    clicked => {
+                        root.add_location();
+                    }
+                }
+
+                ListView {
+                    for loc in root.locations: HorizontalBox {
+                        Text {
+                            text: loc.name;
+                        }
+
+                        Text {
+                            text: loc.path;
+                        }
+
+                        Text {
+                            text: loc.size_str;
+                        }
+
+                        Button {
+                            text: "Remove";
+                            clicked => {
+                                remove_location(loc.id)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

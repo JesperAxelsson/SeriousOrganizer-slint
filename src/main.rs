@@ -12,12 +12,14 @@ use serious_organizer_lib::lens::Lens;
 
 use crate::entry_model_list::LensModelList;
 use crate::file_model_list::FileModelList;
+use crate::location_model_list::reload_locations;
 use crate::reload_controller::ReloadController;
 
 mod config;
 mod entry_model_list;
 mod file_model_list;
 mod helper;
+mod location_model_list;
 mod reload_controller;
 
 fn main() -> Result<(), slint::PlatformError> {
@@ -39,6 +41,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Setup reload controls, we don't need to keep a variable around
     ReloadController::new(ui.as_weak(), lens_model.clone());
+    reload_locations(&ui, &lens.borrow());
 
     // ===== Setup message queue =====
 
@@ -95,6 +98,41 @@ fn main() -> Result<(), slint::PlatformError> {
             }
 
             println!("Search done, current entry ix: {:?}", new_entry_id);
+        }
+    });
+
+    // Locations
+    ui.on_add_location({
+        let ui_handle = ui.as_weak();
+        let lens = lens.clone();
+
+        move || {
+            if let Some(folder_path) = rfd::FileDialog::new().pick_folder() {
+                let path_str = folder_path.to_string_lossy().to_string();
+                let name = folder_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+
+                lens.borrow_mut().add_location(&name, &path_str);
+
+                if let Some(ui) = ui_handle.upgrade() {
+                    reload_locations(&ui, &lens.borrow());
+                }
+            }
+        }
+    });
+
+    ui.on_remove_location({
+        let ui_handle = ui.as_weak();
+        let lens = lens.clone();
+        move |id| {
+            lens.borrow_mut().remove_location_id(id);
+
+            if let Some(ui) = ui_handle.upgrade() {
+                reload_locations(&ui, &lens.borrow());
+            }
         }
     });
 
