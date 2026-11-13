@@ -9,10 +9,13 @@ import {
 } from "std-widgets.slint";
 import { ContextMenu } from "components/context-menu.slint";
 import { TabButton } from "components/tab-button.slint";
-import { LocationData } from "types.slint";
+import { LocationData, TableRow } from "types.slint";
 import { EntryListView, FileListView } from "components/entry-tables.slint";
 import { LibraryView } from "views/library-view.slint";
 import { LocationsView } from "views/locations-view.slint";
+
+// Re-exports
+export { LocationData, TableRow } from "types.slint";
 
 export component AppWindow inherits Window {
     // Search bar
@@ -31,9 +34,12 @@ export component AppWindow inherits Window {
 
     // List actions
     in-out property <int> current-entry;
-    in-out property <[[StandardListViewItem]]> items: [];
+    in-out property <[TableRow]> items: [];
     in-out property <[[StandardListViewItem]]> file-items: [];
+    callback entry-activated(int);
     callback entry-changed(int);
+    callback entry-clicked(int, bool, bool);
+    callback entry-context-opened(int);
 
     // Locations
     callback add_location();
@@ -105,7 +111,14 @@ export component AppWindow inherits Window {
             entry-changed(ix) => {
                 root.entry-changed(ix);
             }
-            entry-context-requested(x, y) => {
+            entry-clicked(row, ctrl, shift) => {
+                root.entry-clicked(row, ctrl, shift);
+            }
+            entry-activated(row) => {
+                root.entry-activated(row);
+            }
+            entry-context-requested(row, x, y) => {
+                root.entry-context-opened(row);
                 root.menu-x = x;
                 root.menu-y = y;
                 context-menu.show();

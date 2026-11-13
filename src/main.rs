@@ -53,6 +53,36 @@ fn main() -> Result<(), slint::PlatformError> {
             file_model.set_entry_ix(entry_ix);
         }
     });
+    ui.on_entry_clicked({
+        let lens_model = lens_model.clone();
+        move |row, ctrl, shift| {
+            if row >= 0 {
+                lens_model.click(row as usize, ctrl, shift);
+            }
+        }
+    });
+    ui.on_entry_context_opened({
+        let lens_model = lens_model.clone();
+        move |row| {
+            if row >= 0 {
+                lens_model.select_for_context(row as usize);
+            }
+        }
+    });
+    ui.on_entry_activated({
+        let lens = lens.clone();
+        move |row| {
+            if row < 0 {
+                return;
+            }
+
+            if let Some(entry) = lens.borrow().get_dir_entry(row as usize) {
+                if let Err(err) = open::that_detached(&entry.path) {
+                    eprintln!("Failed to open '{}': {err}", entry.path);
+                }
+            }
+        }
+    });
 
     ui.on_context_command(|command| {
         println!("Got command: '{command}'");

@@ -5,17 +5,21 @@ import {
     HorizontalBox,
 } from "std-widgets.slint";
 import { FileListView, EntryListView } from "../components/entry-tables.slint";
+import { TableRow } from "../types.slint";
+import { DataTable } from "../components/data-table.slint";
 
 export component LibraryView inherits VerticalBox {
     in-out property <int> current-entry;
-    in property <[[StandardListViewItem]]> items;
+    in property <[TableRow]> items;
     in property <[[StandardListViewItem]]> file-items;
 
     callback reload();
     callback search-text-changed(string);
     callback entry-changed(int);
+    callback entry-clicked(int, bool, bool);
+    callback entry-activated(int);
     // Absolute window coordinates of a right click on the entry table
-    callback entry-context-requested(length, length);
+    callback entry-context-requested(int, length, length);
 
     HorizontalBox {
         LineEdit {
@@ -34,21 +38,23 @@ export component LibraryView inherits VerticalBox {
         }
     }
 
-    EntryListView {
-        current-entry <=> root.current-entry;
-        items: root.items;
+    DataTable {
+        height: 50%;
+        current-row <=> root.current-entry;
+        rows: root.items;
 
-        changed current-entry => {
+        changed current-row => {
             root.entry-changed(root.current-entry);
         }
 
-        row-pointer-event(row, event, position) => {
-            if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
-                root.entry-context-requested(
-                    self.absolute-position.x + position.x,
-                    self.absolute-position.y + position.y,
-                 );
-            }
+        row-clicked(row, ctrl, shift) => {
+            root.entry-clicked(row, ctrl, shift);
+        }
+        row-activated(row) => {
+            root.entry-activated(row);
+        }
+        context-requested(row, x, y) => {
+            root.entry-context-requested(row, x,y);
         }
     }
 

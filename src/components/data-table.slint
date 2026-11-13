@@ -1,0 +1,126 @@
+import { ListView, Palette } from "std-widgets.slint";
+import { TableRow } from "../types.slint";
+
+export component DataTable inherits Rectangle {
+    in property <[TableRow]> rows;
+    in property <length> size-column-width: 90px;
+    in property <length> row-height: 28px;
+    // Last clicked row. -1 means none.
+    in-out property <int> current-row: -1;
+
+    callback row-clicked(int, bool, bool); // row, ctrl, shift
+    callback row-activated(int);           // double click
+    callback context-requested(int, length, length); // row, abs x, abs y
+
+    // Column geometry. Positioned by hand (no layouts) so the widths can depend
+    // on root.width without feeding back into this component's own size.
+    // 14px at the right leaves room for the scrollbar.
+    property <length> pad: 8px;
+    property <length> text-space: max(0px, root.width - 14px - 4 * root.pad - root.size-column-width);
+    property <length> name-width: root.text-space * 0.4;
+    property <length> path-width: root.text-space * 0.6;
+    property <length> name-x: root.pad;
+    property <length> path-x: root.name-x + root.name-width + root.pad;
+    property <length> size-x: root.path-x + root.path-width + root.pad;
+
+    VerticalLayout {
+        // Header
+        Rectangle {
+            height: root.row-height;
+            background: Palette.alternate-background;
+
+            Text {
+                text: "Name";
+                x: root.name-x;
+                height: parent.height;
+                width: root.name-width;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: "Path";
+                x: root.path-x;
+                height: parent.height;
+                width: root.path-width;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: "Size";
+                x: root.size-x;
+                height: parent.height;
+                width: root.size-column-width;
+                font-weight: 700;
+                vertical-alignment: center;
+                horizontal-alignment: right;
+            }
+        }
+
+        ListView {
+            for row[i] in root.rows: row-rect := Rectangle {
+                height: root.row-height;
+                property <brush> fg: row.selected ? Palette.selection-foreground : Palette.foreground;
+                background: row.selected ? Palette.selection-background : (touch.has-hover ? Palette.alternate-background : transparent);
+
+                Rectangle {
+                    x: 0px;
+                    width: 3px;
+                    background: Palette.accent-background;
+                    visible: i == root.current-row;
+                }
+
+                Text {
+                    text: row.name;
+                    x: root.name-x;
+                    height: parent.height;
+                    width: root.name-width;
+                    color: row-rect.fg;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: row.path;
+                    x: root.path-x;
+                    height: parent.height;
+                    width: root.name-width;
+                    color: row-rect.fg;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: row.size-str;
+                    x: root.size-x;
+                    height: parent.height;
+                    width: root.size-column-width;
+                    color: row-rect.fg;
+                    overflow: elide;
+                    vertical-alignment: center;
+                    horizontal-alignment: right;
+                }
+
+                touch := TouchArea {
+                    pointer-event(event) => {
+                        if (event.kind == PointerEventKind.down) {
+                            root.current-row = i;
+                            if (event.button == PointerEventButton.left) {
+                                root.row-clicked(i, event.modifiers.control, event.modifiers.shift);
+                            } else if (event.button == PointerEventButton.right) {
+                                root.context-requested(
+                                    i,
+                                    self.absolute-position.x + self.mouse-x,
+                                    self.absolute-position.y + self.mouse-y);
+                            }
+                        }
+                    }
+                    double-clicked => {
+                        root.row-activated(i);
+                    }
+                }
+            }
+        }
+    }
+}

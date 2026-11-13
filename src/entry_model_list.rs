@@ -1,19 +1,26 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use slint::{Model, ModelNotify, ModelRc, StandardListViewItem, VecModel};
 
 use serious_organizer_lib::lens::Lens;
 
+use crate::TableRow;
 use crate::helper::format_size;
 
 pub struct LensModelList {
     pub lens: Rc<RefCell<Lens>>,
     notify: ModelNotify,
+    /// Selected entry ids. Ids, not rows, so selection survives search/sort/reload.
+    selected: RefCell<HashSet<i32>>,
+    /// Entry id that shift-click ranges start from
+    anchor: Cell<Option<i32>>,
 }
 
 impl Model for LensModelList {
-    type Data = ModelRc<StandardListViewItem>;
+    type Data = TableRow;
+    // type Data = ModelRc<TableRow>;
 
     fn row_count(&self) -> usize {
         let count = self.lens.borrow().get_dir_count();
@@ -25,15 +32,30 @@ impl Model for LensModelList {
     fn row_data(&self, row: usize) -> Option<Self::Data> {
         // println!("Print row data {row}");
         if let Some(entry) = self.lens.borrow().get_dir_entry(row) {
-            let items = vec![
-                StandardListViewItem::from(entry.name.as_str()),
-                StandardListViewItem::from(entry.path.as_str()),
-                StandardListViewItem::from(format_size(entry.size).as_str()),
-            ];
+            return Some(TableRow {
+                id: entry.id,
+                name: entry.name.as_str().into(),
+                path: entry.path.as_str().into(),
+                size_str: format_size(entry.size).into(),
+                selected: self.selected.borrow().contains(&entry.id),
+            });
 
-            let row_model = Rc::new(VecModel::from(items));
+            // let items = TableRow {
+            //     id: entry.id,
+            //     name: entry.name.as_str(),
+            //     path: entry.path.as_str(),
+            //     size_str: format_size(entry.size).as_str(),
+            //     selected: self.selected.borrow().contains(&entry.id),
+            // };
 
-            Some(ModelRc::from(row_model))
+            // let items = vec![
+            //     StandardListViewItem::from(entry.name.as_str()),
+            //     StandardListViewItem::from(entry.path.as_str()),
+            //     StandardListViewItem::from(format_size(entry.size).as_str()),
+            // ];
+
+            // let row_model = Rc::new(VecModel::from(items));
+            // Some(ModelRc::from(row_model))
         } else {
             None
         }
@@ -58,11 +80,95 @@ impl LensModelList {
         Self {
             lens,
             notify: ModelNotify::default(),
+            selected: RefCell::new(HashSet::new()),
+            anchor: Cell::new(None),
         }
     }
 
     pub fn update(&self) {
-        println!("Reset the thing!");
+        // Drop ids of entries that no longer exist (e.g. after a reload).
+        // Entries that are only filtered out by a search stay selected.
+        {
+            let lens = self.lens.borrow();
+            self.selected
+                .borrow_mut()
+                .retain(|id| lens.get_dir_entry_by_id(*id).is_some());
+        }
+
+        // println!("Reset the thing!");
         self.notify.reset();
+    }
+
+    pub fn selected_ids(&self) -> Vec<i32> {
+        self.selected.borrow().iter().copied().collect()
+    }
+
+    pub fn click(&self, row: usize, ctrl: bool, shift: bool) {
+        let lens = self.lens.borrow();
+        let Some(id) = lens.get_dir_entry(row).map(|e| e.id) else {
+            return;
+        };
+
+        let mut selection = if ctrl | shift {
+            self.selected.borrow().clone()
+        } else {
+            HashSet::new()
+        };
+
+        let anchor_row = self.anchor.get().and_then(|a| lens.entry_id_to_ix(a));
+
+        match (shift, anchor_row) {
+            (true, Some(anchor_row)) => {
+                let (from, to) = if anchor_row <= row {
+                    (anchor_row, row)
+                } else {
+                    (row, anchor_row)
+                };
+
+                for ix in from..=to {
+                    if let Some(e) = lens.get_dir_entry(ix) {
+                        selection.insert(e.id);
+                    }
+                }
+            }
+            _ => {
+                if ctrl && selection.contains(&id) {
+                    selection.remove(&id);
+                } else {
+                    selection.insert(id);
+                }
+
+                self.anchor.set(Some(id));
+            }
+        }
+
+        drop(lens);
+        self.replace_selection(selection);
+    }
+
+    pub fn select_for_context(&self, row: usize) {
+        let id = match self.lens.borrow().get_dir_entry(row) {
+            Some(e) => e.id,
+            None => return,
+        };
+
+        if !self.selected.borrow().contains(&id) {
+            self.anchor.set(Some(id));
+            self.replace_selection(HashSet::from([id]));
+        }
+    }
+
+    fn replace_selection(&self, new: HashSet<i32>) {
+        let old = std::mem::replace(&mut *self.selected.borrow_mut(), new);
+
+        let lens = self.lens.borrow();
+        let new = self.selected.borrow();
+        for row in 0..lens.get_dir_count() {
+            if let Some(entry) = lens.get_dir_entry(row) {
+                if old.contains(&entry.id) != new.contains(&entry.id) {
+                    self.notify.row_changed(row);
+                }
+            }
+        }
     }
 }
