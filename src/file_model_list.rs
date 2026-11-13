@@ -35,7 +35,7 @@ impl Model for FileModelList {
             name: file.name.as_str().into(),
             path: file.path.as_str().into(),
             size_str: format_size(file.size),
-            selected: false,
+            selected: self.selected.borrow().contains(&file.id),
         })
     }
 
@@ -68,27 +68,25 @@ impl FileModelList {
     }
 
     pub fn set_entry_ix(&self, entry_ix: i32) {
-        if entry_ix >= 0 {
-            self.entry_ix.set(Some(entry_ix as usize));
-            self.lens
-                .borrow_mut()
-                .set_current_entry_id(Some(entry_ix as usize));
+        let new_ix = if entry_ix >= 0 {
+            Some(entry_ix as usize)
         } else {
-            self.entry_ix.set(None);
-            self.lens.borrow_mut().set_current_entry_id(None);
-        }
+            None
+        };
 
-        if (entry_ix as usize) != self.entry_ix.get().unwrap_or(usize::MAX) {
+        if new_ix != self.entry_ix.get() {
             self.selected.borrow_mut().clear();
             self.anchor.replace(None);
         }
 
+        self.entry_ix.set(new_ix);
+        self.lens.borrow_mut().set_current_entry_id(new_ix);
         self.notify.reset();
     }
 
     pub fn click(&self, row: usize, ctrl: bool, shift: bool) {
         let lens = self.lens.borrow();
-        let Some(id) = lens.get_dir_entry(row).map(|e| e.id) else {
+        let Some(id) = lens.get_file_entry(row).map(|e| e.id) else {
             return;
         };
 
@@ -98,7 +96,7 @@ impl FileModelList {
             HashSet::new()
         };
 
-        let anchor_row = self.anchor.get().and_then(|a| lens.entry_id_to_ix(a));
+        let anchor_row = self.anchor.get().and_then(|a| lens.file_id_to_ix(a));
 
         match (shift, anchor_row) {
             (true, Some(anchor_row)) => {
@@ -109,7 +107,7 @@ impl FileModelList {
                 };
 
                 for ix in from..=to {
-                    if let Some(e) = lens.get_dir_entry(ix) {
+                    if let Some(e) = lens.get_file_entry(ix) {
                         selection.insert(e.id);
                     }
                 }
@@ -129,13 +127,29 @@ impl FileModelList {
         self.replace_selection(selection);
     }
 
+    pub fn select_for_context(&self, row: usize) {
+        let id = match self.lens.borrow().get_file_entry(row) {
+            Some(e) => e.id,
+            None => return,
+        };
+
+        if !self.selected.borrow().contains(&id) {
+            self.anchor.set(Some(id));
+            self.replace_selection(HashSet::from([id]));
+        }
+    }
+
     fn replace_selection(&self, new: HashSet<i32>) {
         let old = std::mem::replace(&mut *self.selected.borrow_mut(), new);
 
         let lens = self.lens.borrow();
         let new = self.selected.borrow();
-        for row in 0..lens.get_dir_count() {
-            if let Some(entry) = lens.get_dir_entry(row) {
+        let Some(file_count) = lens.get_file_count() else {
+            return;
+        };
+
+        for row in 0..file_count {
+            if let Some(entry) = lens.get_file_entry(row) {
                 if old.contains(&entry.id) != new.contains(&entry.id) {
                     self.notify.row_changed(row);
                 }

@@ -7,7 +7,7 @@ use std::{
 use serious_organizer_lib::{dir_search, models::DirEntry};
 use slint::{ComponentHandle, Weak};
 
-use crate::{AppState, AppWindow, entry_model_list::LensModelList};
+use crate::{AppState, AppWindow, entry_model_list::EntryModelList};
 
 enum LensMessage {
     ReloadResult(Vec<(i32, DirEntry)>),
@@ -15,12 +15,12 @@ enum LensMessage {
 
 pub struct ReloadController {
     ui: Weak<AppWindow>,
-    lens_model: Rc<LensModelList>,
+    lens_model: Rc<EntryModelList>,
     tx: Sender<LensMessage>,
 }
 
 impl ReloadController {
-    pub fn new(ui: Weak<AppWindow>, lens_model: Rc<LensModelList>) -> Self {
+    pub fn new(ui: Weak<AppWindow>, lens_model: Rc<EntryModelList>) -> Self {
         let (tx, rx): (Sender<LensMessage>, Receiver<LensMessage>) = channel();
 
         let controller = Self { ui, lens_model, tx };

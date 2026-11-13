@@ -28,10 +28,6 @@ fn main() -> Result<(), slint::PlatformError> {
     let db_path = config::get_dir_path();
     println!("dbpath: {}", db_path);
     let lens = Rc::new(RefCell::new(Lens::new(&db_path)));
-    // {
-    //     let mut foo = lens.lock().unwrap();
-    //     foo.add_location("Banana", "/home/jesper/Videos");
-    // }
 
     // Models
     let entry_model = Rc::new(EntryModelList::new(lens.clone()));
@@ -55,6 +51,7 @@ fn main() -> Result<(), slint::PlatformError> {
             file_model.set_entry_ix(entry_ix);
         }
     });
+
     state.on_entry_clicked({
         let lens_model = entry_model.clone();
         move |row, ctrl, shift| {
@@ -63,6 +60,7 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         }
     });
+
     ui.on_entry_context_opened({
         let lens_model = entry_model.clone();
         move |row| {
@@ -71,6 +69,7 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         }
     });
+
     state.on_entry_activated({
         let lens = lens.clone();
         move |row| {
@@ -144,6 +143,7 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
+    // *** File list ***
     state.on_file_header_clicked({
         let state_handle = state.as_weak();
         let lens = lens.clone();
@@ -180,7 +180,40 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
-    // Locations
+    state.on_file_clicked({
+        let lens_model = file_model.clone();
+        move |row, ctrl, shift| {
+            if row >= 0 {
+                lens_model.click(row as usize, ctrl, shift);
+            }
+        }
+    });
+
+    ui.on_file_context_opened({
+        let lens_model = file_model.clone();
+        move |row| {
+            if row >= 0 {
+                lens_model.select_for_context(row as usize);
+            }
+        }
+    });
+
+    state.on_file_activated({
+        let lens = lens.clone();
+        move |row| {
+            if row < 0 {
+                return;
+            }
+
+            if let Some(file) = lens.borrow().get_file_entry(row as usize) {
+                if let Err(err) = open::that_detached(&file.path) {
+                    eprintln!("Failed to open '{}': {err}", file.path);
+                }
+            }
+        }
+    });
+
+    // *** Locations ***
     ui.on_add_location({
         // let state_handle = state.as_weak();
         let ui_handle = ui.as_weak();

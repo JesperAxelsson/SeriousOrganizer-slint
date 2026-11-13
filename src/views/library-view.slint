@@ -45,8 +45,12 @@ export component LibraryView inherits VerticalBox {
 
         header-clicked(col) => AppState.entry-header-clicked(col);
         row-clicked(row, ctrl, shift) => AppState.entry-clicked(row, ctrl, shift);
-        row-activated(row) => AppState.entry-activated(row);
+        row-activated(row) => {
+            AppState.current-file = -1;
+            AppState.entry-activated(row);
+        }
         context-requested(row, x, y) => root.entry-context-requested(row, x,y);
+        // context-requested(row, x, y) => AppState.entry-context-requested(row, x,y);
     }
 
     DataTable {
@@ -64,5 +68,6 @@ export component LibraryView inherits VerticalBox {
         row-clicked(row, ctrl, shift) => AppState.file-clicked(row, ctrl, shift);
         row-activated(row) => AppState.file-activated(row);
         context-requested(row, x, y) => root.file-context-requested(row, x,y);
+        // context-requested(row, x, y) => AppState.file-context-requested(row, x,y);
     }
 }
