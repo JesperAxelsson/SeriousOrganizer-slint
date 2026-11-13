@@ -7,6 +7,7 @@ import {
     StandardTableView,
     StandardListView,
 } from "std-widgets.slint";
+import { ContextMenu } from "components/context-menu.slint";
 
 export struct LocationData {
     id: int,
@@ -66,40 +67,6 @@ component FileListView inherits StandardTableView {
     rows: items;
 }
 
-component ContextMenu inherits PopupWindow {
-    width: 150px;
-    close-policy: PopupClosePolicy.close-on-click-outside;
-
-    callback context-command(string);
-
-    Rectangle {
-        background: white;
-        border-color: lightgray;
-        border-width: 1px;
-        drop-shadow-blur: 5px;
-        drop-shadow-color: #00000033;
-
-        VerticalLayout {
-            padding: 4px;
-
-            Rectangle {
-                height: 30px;
-                background: touch-open.has-hover ? #eeeeee : transparent;
-                Text {
-                    text: "Open file";
-                    x: 10px;
-                    vertical-alignment: center;
-                }
-
-                touch-open := TouchArea {
-                    clicked => {
-                        root.context-command("file-open");
-                    }
-                }
-            }
-        }
-    }
-}
 
 export component AppWindow inherits Window {
     // Search bar
