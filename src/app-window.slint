@@ -8,38 +8,8 @@ import {
     StandardListView,
 } from "std-widgets.slint";
 import { ContextMenu } from "components/context-menu.slint";
-
-export struct LocationData {
-    id: int,
-    name: string,
-    path: string,
-    size_str: string,
-}
-
-component TabButton inherits Rectangle {
-    in property <string> text;
-    in property <bool> active;
-    callback clicked <=> touch.clicked;
-
-    Text {
-        text: root.text;
-        color: root.active ? #2196F3 : #666666;
-        font-weight: root.active ? 700 : 400;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
-
-    Rectangle {
-        width: parent.width;
-        height: 3px;
-        y: parent.height - self.height; // Align to bottom
-        background: root.active ? #2193F3 : transparent;
-    }
-
-    touch := TouchArea {
-        mouse-cursor: pointer;
-    }
-}
+import { TabButton } from "components/tab-button.slint";
+import { LocationData } from "types.slint";
 
 component EntryListView inherits StandardTableView {
     in-out property <int> current-entry;
