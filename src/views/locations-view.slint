@@ -1,0 +1,46 @@
+import { Button, VerticalBox, HorizontalBox, ListView } from "std-widgets.slint";
+import { LocationData } from "../types.slint";
+
+export component LocationsView inherits VerticalBox {
+    in property <[LocationData]> locations;
+    callback add-location();
+    callback remove-location(int);
+
+    padding: 16px;
+    spacing: 16px;
+
+    Text {
+        text: "Settings";
+    }
+
+    HorizontalBox {
+        alignment: start;
+        Text {
+            text: "Managed Locations";
+            font-size: 16px;
+            vertical-alignment: center;
+        }
+
+        Button {
+            text: "Add New Folder";
+            clicked => {
+                root.add-location();
+            }
+        }
+    }
+
+    ListView {
+        for loc in root.locations: HorizontalBox {
+            Text { text: loc.name; }
+            Text { text: loc.path; }
+            Text { text: loc.size_str; }
+
+            Button {
+                text: "Remove";
+                clicked => {
+                    root.remove-location(loc.id);
+                }
+            }
+        }
+    }
+}

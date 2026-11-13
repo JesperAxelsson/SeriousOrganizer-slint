@@ -1,0 +1,27 @@
+import { StandardTableView } from "std-widgets.slint";
+
+export component EntryListView inherits StandardTableView {
+    in-out property <int> current-entry;
+    in-out property <[[StandardListViewItem]]> items: [];
+
+    width: 100%;
+    height: 50%;
+
+    current-row <=> root.current-entry;
+    columns: [
+        { title: "Name" },
+        { title: "Path" },
+        { title: "Size", width: 80px, horizontal-stretch: 0 }
+    ];
+    rows: root.items;
+}
+
+export component FileListView inherits StandardTableView {
+    in-out property <[[StandardListViewItem]]> items: [];
+
+    width: 100%;
+    height: 50%;
+
+    columns: [{ title: "Name" }, { title: "Path" }, { title: "Size", width: 80px }];
+    rows: items;
+}

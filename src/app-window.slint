@@ -10,33 +10,9 @@ import {
 import { ContextMenu } from "components/context-menu.slint";
 import { TabButton } from "components/tab-button.slint";
 import { LocationData } from "types.slint";
-
-component EntryListView inherits StandardTableView {
-    in-out property <int> current-entry;
-    in-out property <[[StandardListViewItem]]> items: [];
-
-    width: 100%;
-    height: 50%;
-
-    current-row <=> root.current-entry;
-    columns: [
-        { title: "Name" },
-        { title: "Path" },
-        { title: "Size", width: 80px, horizontal-stretch: 0 }
-    ];
-    rows: root.items;
-}
-
-component FileListView inherits StandardTableView {
-    in-out property <[[StandardListViewItem]]> items: [];
-
-    width: 100%;
-    height: 50%;
-
-    columns: [{ title: "Name" }, { title: "Path" }, { title: "Size", width: 80px }];
-    rows: items;
-}
-
+import { EntryListView, FileListView } from "components/entry-tables.slint";
+import { LibraryView } from "views/library-view.slint";
+import { LocationsView } from "views/locations-view.slint";
 
 export component AppWindow inherits Window {
     // Search bar
@@ -83,7 +59,7 @@ export component AppWindow inherits Window {
             // background: #f5f5f5;
 
             HorizontalLayout {
-                    spacing: 20px;
+                spacing: 20px;
                 TabButton {
                     text: "Library";
                     active: root.active-tab == 0;
@@ -115,103 +91,32 @@ export component AppWindow inherits Window {
         }
 
         // --- VIEW 0: MAIN LIBRARY
-        if root.active-tab == 0: VerticalBox {
-            VerticalBox {
-                HorizontalBox {
-                    LineEdit {
-                        placeholder-text: "Search";
+        if root.active-tab == 0: LibraryView {
+            current-entry <=> root.current-entry;
+            items: root.items;
+            file-items: root.file-items;
 
-                        edited(text) => {
-                            root.search-text-changed(text);
-                        }
-                    }
-
-                    Button {
-                        text: "Reload";
-                        clicked => {
-                            root.reload();
-                        }
-                    }
-                }
-
-                EntryListView {
-                    current-entry <=> current-entry;
-                    items: items;
-
-                    changed current-entry => {
-                        root.entry-changed(root.current-entry);
-                    }
-
-                    row-pointer-event(row, event, position) => {
-                        if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
-                    // root.menu-x = event.absolute-position.x;
-                    // root.menu-y = event.absolute-position.y;
-                    
-                    root.menu-x = self.absolute-position.x + position.x;
-                            root.menu-y = self.absolute-position.y + position.y;
-
-                            context-menu.show();
-                        }
-                    }
-                }
-
-                FileListView {
-                    items: file-items;
-                }
+            reload => {
+                root.reload();
+            }
+            search-text-changed(text) => {
+                root.search-text-changed(text);
+            }
+            entry-changed(ix) => {
+                root.entry-changed(ix);
+            }
+            entry-context-requested(x, y) => {
+                root.menu-x = x;
+                root.menu-y = y;
+                context-menu.show();
             }
         }
 
         // --- VIEW 0: MAIN LIBRARY
-        if root.active-tab == 1: VerticalBox {
-            padding: 16px;
-            spacing: 16px;
-
-            Text {
-                text: "Settings";
-            }
-
-            HorizontalBox {
-                alignment: start;
-                Text {
-                    text: "Managed Locations";
-                    font-size: 16px;
-                    vertical-alignment: center;
-                }
-
-                Button {
-                    text: "Add New Folder";
-                    clicked => {
-                        root.add_location();
-                    }
-                }
-            }
-
-            // StandardListView {
-            //     model: root.locations;
-            // }
-            
-            ListView {
-                for loc in root.locations: HorizontalBox {
-                    Text {
-                        text: loc.name;
-                    }
-
-                    Text {
-                        text: loc.path;
-                    }
-
-                    Text {
-                        text: loc.size_str;
-                    }
-
-                    Button {
-                        text: "Remove";
-                        clicked => {
-                            remove_location(loc.id)
-                        }
-                    }
-                }
-            }
+        if root.active-tab == 1: LocationsView {
+            locations: root.locations;
+            add-location => { root.add_location(); }
+            remove-location(id) => { root.remove_location(id); }
         }
     }
 }

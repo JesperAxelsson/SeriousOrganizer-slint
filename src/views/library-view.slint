@@ -1,0 +1,58 @@
+import {
+    VerticalBox,
+    Button,
+    LineEdit,
+    HorizontalBox,
+} from "std-widgets.slint";
+import { FileListView, EntryListView } from "../components/entry-tables.slint";
+
+export component LibraryView inherits VerticalBox {
+    in-out property <int> current-entry;
+    in property <[[StandardListViewItem]]> items;
+    in property <[[StandardListViewItem]]> file-items;
+
+    callback reload();
+    callback search-text-changed(string);
+    callback entry-changed(int);
+    // Absolute window coordinates of a right click on the entry table
+    callback entry-context-requested(length, length);
+
+    HorizontalBox {
+        LineEdit {
+            placeholder-text: "Search";
+
+            edited(text) => {
+                root.search-text-changed(text);
+            }
+        }
+
+        Button {
+            text: "Reload";
+            clicked => {
+                root.reload();
+            }
+        }
+    }
+
+    EntryListView {
+        current-entry <=> root.current-entry;
+        items: root.items;
+
+        changed current-entry => {
+            root.entry-changed(root.current-entry);
+        }
+
+        row-pointer-event(row, event, position) => {
+            if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) {
+                root.entry-context-requested(
+                    self.absolute-position.x + position.x,
+                    self.absolute-position.y + position.y,
+                 );
+            }
+        }
+    }
+
+    FileListView {
+        items: root.file-items;
+    }
+}
