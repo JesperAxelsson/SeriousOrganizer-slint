@@ -9,7 +9,7 @@ use serious_organizer_lib::lens::Lens;
 use crate::TableRow;
 use crate::helper::format_size;
 
-pub struct LensModelList {
+pub struct EntryModelList {
     pub lens: Rc<RefCell<Lens>>,
     notify: ModelNotify,
     /// Selected entry ids. Ids, not rows, so selection survives search/sort/reload.
@@ -18,18 +18,14 @@ pub struct LensModelList {
     anchor: Cell<Option<i32>>,
 }
 
-impl Model for LensModelList {
+impl Model for EntryModelList {
     type Data = TableRow;
 
     fn row_count(&self) -> usize {
-        let count = self.lens.borrow().get_dir_count();
-
-        // println!("Row count {count}");
-        count
+        self.lens.borrow().get_dir_count()
     }
 
     fn row_data(&self, row: usize) -> Option<Self::Data> {
-        // println!("Print row data {row}");
         if let Some(entry) = self.lens.borrow().get_dir_entry(row) {
             return Some(TableRow {
                 id: entry.id,
@@ -43,10 +39,7 @@ impl Model for LensModelList {
         }
     }
 
-    fn set_row_data(&self, _row: usize, _data: Self::Data) {
-        // self.array.borrow_mut()[row] = data;
-        // self.notify.row_changed(row);
-    }
+    fn set_row_data(&self, _row: usize, _data: Self::Data) {}
 
     fn model_tracker(&self) -> &dyn slint::ModelTracker {
         &self.notify
@@ -57,7 +50,7 @@ impl Model for LensModelList {
     }
 }
 
-impl LensModelList {
+impl EntryModelList {
     pub fn new(lens: Rc<RefCell<Lens>>) -> Self {
         Self {
             lens,
@@ -81,9 +74,9 @@ impl LensModelList {
         self.notify.reset();
     }
 
-    pub fn selected_ids(&self) -> Vec<i32> {
-        self.selected.borrow().iter().copied().collect()
-    }
+    // pub fn selected_ids(&self) -> Vec<i32> {
+    //     self.selected.borrow().iter().copied().collect()
+    // }
 
     pub fn click(&self, row: usize, ctrl: bool, shift: bool) {
         let lens = self.lens.borrow();

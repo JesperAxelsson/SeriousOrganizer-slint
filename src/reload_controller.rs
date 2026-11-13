@@ -5,9 +5,9 @@ use std::{
 };
 
 use serious_organizer_lib::{dir_search, models::DirEntry};
-use slint::Weak;
+use slint::{ComponentHandle, Weak};
 
-use crate::{AppWindow, entry_model_list::LensModelList};
+use crate::{AppState, AppWindow, entry_model_list::LensModelList};
 
 enum LensMessage {
     ReloadResult(Vec<(i32, DirEntry)>),
@@ -35,7 +35,7 @@ impl ReloadController {
         let lens_model = self.lens_model.clone();
 
         if let Some(ui) = self.ui.upgrade() {
-            ui.on_reload_done(move || {
+            ui.global::<AppState>().on_reload_done(move || {
                 while let Ok(msg) = rx.try_recv() {
                     match msg {
                         LensMessage::ReloadResult(mut result) => {
@@ -54,7 +54,7 @@ impl ReloadController {
         let tx = self.tx.clone();
 
         if let Some(ui) = self.ui.upgrade() {
-            ui.on_reload(move || {
+            ui.global::<AppState>().on_reload(move || {
                 let paths = lens_model
                     .lens
                     .borrow()
@@ -80,7 +80,7 @@ impl ReloadController {
             if tx.send(LensMessage::ReloadResult(dir_s)).is_ok() {
                 slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
-                        ui.invoke_reload_done();
+                        ui.global::<AppState>().invoke_reload_done();
                     }
                 })
                 .unwrap();

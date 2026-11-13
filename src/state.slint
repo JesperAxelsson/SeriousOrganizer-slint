@@ -1,0 +1,33 @@
+import { TableRow } from "types.slint";
+
+export global AppState {
+    // *** Entry ***
+    in-out property <[TableRow]> items: [];
+
+    in-out property <int> current-entry;
+    in-out property <int> entry-sort-column: 0;
+    in-out property <bool> entry-sort-ascending: true;
+
+    callback entry-changed(int);
+    callback entry-clicked(int, bool, bool);
+    callback entry-activated(int);
+    callback entry-header-clicked(int);
+
+    // *** File ***
+    in-out property <[TableRow]> file-items: [];
+
+    in-out property <int> current-file;
+    in-out property <int> file-sort-column: 0;
+    in-out property <bool> file-sort-ascending: true;
+
+    callback file-changed(int);
+    callback file-clicked(int, bool, bool);
+    callback file-activated(int);
+    callback file-header-clicked(int);
+
+    // Search bar
+    in-out property <string> search-text;
+    callback reload();
+    callback reload-done();
+    callback search-text-changed(string);
+}

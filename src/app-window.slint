@@ -7,6 +7,7 @@ import {
     StandardTableView,
     StandardListView,
 } from "std-widgets.slint";
+    import { AppState } from "state.slint";
 import { ContextMenu } from "components/context-menu.slint";
 import { TabButton } from "components/tab-button.slint";
 import { LocationData, TableRow } from "types.slint";
@@ -15,14 +16,9 @@ import { LocationsView } from "views/locations-view.slint";
 
 // Re-exports
 export { LocationData, TableRow } from "types.slint";
+    export { AppState } from "state.slint";
 
 export component AppWindow inherits Window {
-    // Search bar
-    in-out property <string> search-text;
-    callback reload();
-    callback reload-done();
-    callback search-text-changed(string);
-
     // Tab handling
     property <int> active-tab: 0;
 
@@ -32,17 +28,8 @@ export component AppWindow inherits Window {
     callback context-command(string);
 
     // List actions
-    in-out property <int> current-entry;
-    in-out property <[TableRow]> items: [];
-    in-out property <[TableRow]> file-items: [];
-    in-out property <int> sort-column: 0;
-    in-out property <bool> sort-ascending: true;
-
-    callback entry-activated(int);
-    callback entry-changed(int);
-    callback entry-clicked(int, bool, bool);
     callback entry-context-opened(int);
-    callback entry-header-clicked(int);
+    callback file-context-opened(int);
 
     // Locations
     callback add_location();
@@ -101,32 +88,14 @@ export component AppWindow inherits Window {
 
         // --- VIEW 0: MAIN LIBRARY
         if root.active-tab == 0: LibraryView {
-            current-entry <=> root.current-entry;
-            items: root.items;
-            file-items: root.file-items;
-            sort-column: root.sort-column;
-            sort-ascending: root.sort-ascending;
-
-            reload => {
-                root.reload();
-            }
-            search-text-changed(text) => {
-                root.search-text-changed(text);
-            }
-            entry-changed(ix) => {
-                root.entry-changed(ix);
-            }
-            entry-clicked(row, ctrl, shift) => {
-                root.entry-clicked(row, ctrl, shift);
-            }
-            entry-activated(row) => {
-                root.entry-activated(row);
-            }
-            entry-header-clicked(col) => {
-                root.entry-header-clicked(col);
-            }
             entry-context-requested(row, x, y) => {
                 root.entry-context-opened(row);
+                root.menu-x = x;
+                root.menu-y = y;
+                context-menu.show();
+            }
+            file-context-requested(row, x, y) => {
+                root.file-context-opened(row);
                 root.menu-x = x;
                 root.menu-y = y;
                 context-menu.show();

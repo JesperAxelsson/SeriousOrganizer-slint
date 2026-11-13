@@ -4,13 +4,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::ModelRc;
+use slint::{Global, ModelRc};
 
 slint::include_modules!();
 
 use serious_organizer_lib::lens::{Lens, SortColumn, SortOrder};
 
-use crate::entry_model_list::LensModelList;
+use crate::entry_model_list::EntryModelList;
 use crate::file_model_list::FileModelList;
 use crate::location_model_list::reload_locations;
 use crate::reload_controller::ReloadController;
@@ -34,27 +34,29 @@ fn main() -> Result<(), slint::PlatformError> {
     // }
 
     // Models
-    let lens_model = Rc::new(LensModelList::new(lens.clone()));
+    let entry_model = Rc::new(EntryModelList::new(lens.clone()));
     let file_model = Rc::new(FileModelList::new(lens.clone()));
 
     let ui = AppWindow::new()?;
+    let state = ui.global::<AppState>();
 
     // Setup reload controls, we don't need to keep a variable around
-    ReloadController::new(ui.as_weak(), lens_model.clone());
+    ReloadController::new(ui.as_weak(), entry_model.clone());
     reload_locations(&ui, &lens.borrow());
 
     // ===== Setup message queue =====
 
     // Setup Entry table
-    ui.set_items(ModelRc::new(lens_model.clone()));
-    ui.on_entry_changed({
+    state.set_items(ModelRc::new(entry_model.clone()));
+
+    state.on_entry_changed({
         let file_model = file_model.clone();
         move |entry_ix| {
             file_model.set_entry_ix(entry_ix);
         }
     });
-    ui.on_entry_clicked({
-        let lens_model = lens_model.clone();
+    state.on_entry_clicked({
+        let lens_model = entry_model.clone();
         move |row, ctrl, shift| {
             if row >= 0 {
                 lens_model.click(row as usize, ctrl, shift);
@@ -62,14 +64,14 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
     ui.on_entry_context_opened({
-        let lens_model = lens_model.clone();
+        let lens_model = entry_model.clone();
         move |row| {
             if row >= 0 {
                 lens_model.select_for_context(row as usize);
             }
         }
     });
-    ui.on_entry_activated({
+    state.on_entry_activated({
         let lens = lens.clone();
         move |row| {
             if row < 0 {
@@ -89,30 +91,30 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     // Setup File table
-    ui.set_file_items(file_model.into());
+    state.set_file_items(ModelRc::new(file_model.clone()));
 
     // Searching
-    ui.on_search_text_changed({
-        let ui_handle = ui.as_weak();
+    state.on_search_text_changed({
+        let state_handle = state.as_weak();
         let lens = lens.clone();
-        let lens_model = lens_model.clone();
+        let lens_model = entry_model.clone();
 
         move |text| {
-            let ui = ui_handle.unwrap();
-            keep_current_entry(&ui, &lens, || {
+            let state = state_handle.unwrap();
+            keep_current_entry(&state, &lens, || {
                 lens.borrow_mut().update_search_text(&text);
                 lens_model.update();
             });
         }
     });
 
-    ui.on_entry_header_clicked({
-        let ui_handle = ui.as_weak();
+    state.on_entry_header_clicked({
+        let state_handle = state.as_weak();
         let lens = lens.clone();
-        let lens_model = lens_model.clone();
+        let lens_model = entry_model.clone();
 
         move |column| {
-            let ui = ui_handle.unwrap();
+            let state = state_handle.unwrap();
 
             let sort_column = match column {
                 0 => SortColumn::Name,
@@ -121,8 +123,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 _ => return,
             };
 
-            let ascending = if ui.get_sort_column() == column {
-                !ui.get_sort_ascending()
+            let ascending = if state.get_entry_sort_column() == column {
+                !state.get_entry_sort_ascending()
             } else {
                 true
             };
@@ -132,18 +134,55 @@ fn main() -> Result<(), slint::PlatformError> {
                 SortOrder::Desc
             };
 
-            keep_current_entry(&ui, &lens, || {
+            keep_current_entry(&state, &lens, || {
                 lens.borrow_mut().order_by(sort_column, order);
                 lens_model.update();
             });
 
-            ui.set_sort_column(column);
-            ui.set_sort_ascending(ascending);
+            state.set_entry_sort_column(column);
+            state.set_entry_sort_ascending(ascending);
+        }
+    });
+
+    state.on_file_header_clicked({
+        let state_handle = state.as_weak();
+        let lens = lens.clone();
+        let file_model = file_model.clone();
+
+        move |column| {
+            let state = state_handle.unwrap();
+
+            let sort_column = match column {
+                0 => SortColumn::Name,
+                1 => SortColumn::Path,
+                2 => SortColumn::Size,
+                _ => return,
+            };
+
+            let ascending = if state.get_file_sort_column() == column {
+                !state.get_file_sort_ascending()
+            } else {
+                true
+            };
+            let order = if ascending {
+                SortOrder::Asc
+            } else {
+                SortOrder::Desc
+            };
+
+            keep_current_file(&state, &lens, || {
+                lens.borrow_mut().order_files_by(sort_column, order);
+                file_model.update();
+            });
+
+            state.set_file_sort_column(column);
+            state.set_file_sort_ascending(ascending);
         }
     });
 
     // Locations
     ui.on_add_location({
+        // let state_handle = state.as_weak();
         let ui_handle = ui.as_weak();
         let lens = lens.clone();
 
@@ -182,8 +221,8 @@ fn main() -> Result<(), slint::PlatformError> {
     Ok(())
 }
 
-fn keep_current_entry(ui: &AppWindow, lens: &RefCell<Lens>, change: impl FnOnce()) {
-    let cur_ix = ui.get_current_entry();
+fn keep_current_entry(state: &AppState, lens: &RefCell<Lens>, change: impl FnOnce()) {
+    let cur_ix = state.get_current_entry();
     let entry_id = if cur_ix >= 0 {
         lens.borrow().get_dir_entry(cur_ix as usize).map(|e| e.id)
     } else {
@@ -198,6 +237,26 @@ fn keep_current_entry(ui: &AppWindow, lens: &RefCell<Lens>, change: impl FnOnce(
             .entry_id_to_ix(entry_id)
             .map(|ix| ix as i32)
             .unwrap_or(-1);
-        ui.set_current_entry(new_ix);
+        state.set_current_entry(new_ix);
+    }
+}
+
+fn keep_current_file(state: &AppState, lens: &RefCell<Lens>, change: impl FnOnce()) {
+    let cur_ix = state.get_current_file();
+    let file_id = if cur_ix >= 0 {
+        lens.borrow().get_file_entry(cur_ix as usize).map(|e| e.id)
+    } else {
+        None
+    };
+
+    change();
+
+    if let Some(file_id) = file_id {
+        let new_ix = lens
+            .borrow()
+            .file_id_to_ix(file_id)
+            .map(|ix| ix as i32)
+            .unwrap_or(-1);
+        state.set_current_file(new_ix);
     }
 }
