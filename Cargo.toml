@@ -4,8 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-# slint = "1.15.1"
-slint = { version = "1.17.1", features = ["backend-winit", "renderer-skia"] }
+slint = {
+  version = "1.18.1",
+  default-features = false,
+  features = [
+    "std",
+    "backend-winit-wayland",
+    "renderer-software",
+    "compat-1-2"
+  ]
+}
+
 
 serious_organizer_lib = { path = "../SeriousOrganizerLib" }
 open = "5"
@@ -16,8 +25,8 @@ log = "0.4"
 simplelog = "0.12"
 directories = "6.0"
 
-rfd = "0.17"
+rfd = "0.18"
 
 [build-dependencies]
-slint-build = { version = "1.17.1" }
+slint-build = { version = "1.18.1" }
 
