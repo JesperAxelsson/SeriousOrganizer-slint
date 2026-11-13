@@ -45,6 +45,8 @@ export component LibraryView inherits VerticalBox {
         height: 50%;
         current-row <=> root.current-entry;
         rows: root.items;
+        sort-column: root.sort-column;
+        sort-ascending: root.sort-ascending;
 
         changed current-row => {
             root.entry-changed(root.current-entry);
