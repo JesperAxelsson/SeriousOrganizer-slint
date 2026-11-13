@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use crate::LocationData;
 use serious_organizer_lib::lens::Lens;
 use slint::{ModelRc, SharedString, VecModel};

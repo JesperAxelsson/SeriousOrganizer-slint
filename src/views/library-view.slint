@@ -4,20 +4,23 @@ import {
     LineEdit,
     HorizontalBox,
 } from "std-widgets.slint";
-import { FileListView, EntryListView } from "../components/entry-tables.slint";
 import { TableRow } from "../types.slint";
 import { DataTable } from "../components/data-table.slint";
 
 export component LibraryView inherits VerticalBox {
     in-out property <int> current-entry;
     in property <[TableRow]> items;
-    in property <[[StandardListViewItem]]> file-items;
+    in property <[TableRow]> file-items;
+
+    in property <int> sort-column: -1;
+    in property <bool> sort-ascending: true;
 
     callback reload();
     callback search-text-changed(string);
     callback entry-changed(int);
     callback entry-clicked(int, bool, bool);
     callback entry-activated(int);
+    callback entry-header-clicked(int);
     // Absolute window coordinates of a right click on the entry table
     callback entry-context-requested(int, length, length);
 
@@ -47,6 +50,9 @@ export component LibraryView inherits VerticalBox {
             root.entry-changed(root.current-entry);
         }
 
+        header-clicked(col) => {
+            root.entry-header-clicked(col);
+        }
         row-clicked(row, ctrl, shift) => {
             root.entry-clicked(row, ctrl, shift);
         }
@@ -58,7 +64,10 @@ export component LibraryView inherits VerticalBox {
         }
     }
 
-    FileListView {
-        items: root.file-items;
+    DataTable {
+        height: 50%;
+        rows: root.file-items;
+        selectable: false;
+        sortable: false;
     }
 }

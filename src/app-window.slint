@@ -10,7 +10,6 @@ import {
 import { ContextMenu } from "components/context-menu.slint";
 import { TabButton } from "components/tab-button.slint";
 import { LocationData, TableRow } from "types.slint";
-import { EntryListView, FileListView } from "components/entry-tables.slint";
 import { LibraryView } from "views/library-view.slint";
 import { LocationsView } from "views/locations-view.slint";
 
@@ -35,11 +34,15 @@ export component AppWindow inherits Window {
     // List actions
     in-out property <int> current-entry;
     in-out property <[TableRow]> items: [];
-    in-out property <[[StandardListViewItem]]> file-items: [];
+    in-out property <[TableRow]> file-items: [];
+    in-out property <int> sort-column: 0;
+    in-out property <bool> sort-ascending: true;
+
     callback entry-activated(int);
     callback entry-changed(int);
     callback entry-clicked(int, bool, bool);
     callback entry-context-opened(int);
+    callback entry-header-clicked(int);
 
     // Locations
     callback add_location();
@@ -101,6 +104,8 @@ export component AppWindow inherits Window {
             current-entry <=> root.current-entry;
             items: root.items;
             file-items: root.file-items;
+            sort-column: root.sort-column;
+            sort-ascending: root.sort-ascending;
 
             reload => {
                 root.reload();
@@ -117,6 +122,9 @@ export component AppWindow inherits Window {
             entry-activated(row) => {
                 root.entry-activated(row);
             }
+            entry-header-clicked(col) => {
+                root.entry-header-clicked(col);
+            }
             entry-context-requested(row, x, y) => {
                 root.entry-context-opened(row);
                 root.menu-x = x;
@@ -128,8 +136,12 @@ export component AppWindow inherits Window {
         // --- VIEW 0: MAIN LIBRARY
         if root.active-tab == 1: LocationsView {
             locations: root.locations;
-            add-location => { root.add_location(); }
-            remove-location(id) => { root.remove_location(id); }
+            add-location => {
+                root.add_location();
+            }
+            remove-location(id) => {
+                root.remove_location(id);
+            }
         }
     }
 }

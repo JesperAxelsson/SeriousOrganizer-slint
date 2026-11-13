@@ -8,7 +8,7 @@ use slint::ModelRc;
 
 slint::include_modules!();
 
-use serious_organizer_lib::lens::Lens;
+use serious_organizer_lib::lens::{Lens, SortColumn, SortOrder};
 
 use crate::entry_model_list::LensModelList;
 use crate::file_model_list::FileModelList;
@@ -89,45 +89,56 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     // Setup File table
-    ui.set_file_items(ModelRc::new(file_model));
+    ui.set_file_items(file_model.into());
 
     // Searching
     ui.on_search_text_changed({
         let ui_handle = ui.as_weak();
         let lens = lens.clone();
-        let lens_model_c = lens_model.clone();
+        let lens_model = lens_model.clone();
 
         move |text| {
-            let ui_handle = ui_handle.unwrap();
+            let ui = ui_handle.unwrap();
+            keep_current_entry(&ui, &lens, || {
+                lens.borrow_mut().update_search_text(&text);
+                lens_model.update();
+            });
+        }
+    });
 
-            // Get current entry id
-            let cur_ix = ui_handle.get_current_entry();
-            let entry_id = if cur_ix >= 0 {
-                lens.borrow().get_dir_entry(cur_ix as usize).map(|e| e.id)
-            } else {
-                None
+    ui.on_entry_header_clicked({
+        let ui_handle = ui.as_weak();
+        let lens = lens.clone();
+        let lens_model = lens_model.clone();
+
+        move |column| {
+            let ui = ui_handle.unwrap();
+
+            let sort_column = match column {
+                0 => SortColumn::Name,
+                1 => SortColumn::Path,
+                2 => SortColumn::Size,
+                _ => return,
             };
 
-            // Search
-            println!("Search text: {text} {:?}", entry_id);
-            lens.borrow_mut().update_search_text(&text);
-            lens_model_c.update();
+            let ascending = if ui.get_sort_column() == column {
+                !ui.get_sort_ascending()
+            } else {
+                true
+            };
+            let order = if ascending {
+                SortOrder::Asc
+            } else {
+                SortOrder::Desc
+            };
 
-            // Check if current entry is still present and select it
-            let mut new_entry_id = None;
-            if let Some(entry_id) = entry_id {
-                // Is the old entry filtered out?
-                if let Some(new_ix) = lens.borrow().entry_id_to_ix(entry_id) {
-                    ui_handle.set_current_entry(new_ix as i32);
-                    new_entry_id = Some(new_ix as i32);
-                } else {
-                    // Reset selection
-                    ui_handle.set_current_entry(-1);
-                    new_entry_id = Some(-1);
-                }
-            }
+            keep_current_entry(&ui, &lens, || {
+                lens.borrow_mut().order_by(sort_column, order);
+                lens_model.update();
+            });
 
-            println!("Search done, current entry ix: {:?}", new_entry_id);
+            ui.set_sort_column(column);
+            ui.set_sort_ascending(ascending);
         }
     });
 
@@ -169,4 +180,24 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.run()?;
 
     Ok(())
+}
+
+fn keep_current_entry(ui: &AppWindow, lens: &RefCell<Lens>, change: impl FnOnce()) {
+    let cur_ix = ui.get_current_entry();
+    let entry_id = if cur_ix >= 0 {
+        lens.borrow().get_dir_entry(cur_ix as usize).map(|e| e.id)
+    } else {
+        None
+    };
+
+    change();
+
+    if let Some(entry_id) = entry_id {
+        let new_ix = lens
+            .borrow()
+            .entry_id_to_ix(entry_id)
+            .map(|ix| ix as i32)
+            .unwrap_or(-1);
+        ui.set_current_entry(new_ix);
+    }
 }

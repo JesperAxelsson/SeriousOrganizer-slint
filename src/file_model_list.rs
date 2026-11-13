@@ -1,10 +1,11 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use slint::{Model, ModelNotify, ModelRc, StandardListViewItem, VecModel};
+use slint::{Model, ModelNotify};
 
 use serious_organizer_lib::lens::Lens;
 
+use crate::TableRow;
 use crate::helper::format_size;
 
 pub struct FileModelList {
@@ -14,7 +15,7 @@ pub struct FileModelList {
 }
 
 impl Model for FileModelList {
-    type Data = ModelRc<StandardListViewItem>;
+    type Data = TableRow;
 
     fn row_count(&self) -> usize {
         if let Some(entry_ix) = self.entry_ix.get() {
@@ -25,28 +26,19 @@ impl Model for FileModelList {
     }
 
     fn row_data(&self, row: usize) -> Option<Self::Data> {
-        // println!("Print row data {row}");
-        if let Some(entry_ix) = self.entry_ix.get() {
-            if let Some(file) = self.lens.borrow().get_file_entry(entry_ix, row) {
-                let items = vec![
-                    StandardListViewItem::from(file.name.as_str()),
-                    StandardListViewItem::from(file.path.as_str()),
-                    StandardListViewItem::from(format_size(file.size).as_str()),
-                ];
-
-                let row_model = Rc::new(VecModel::from(items));
-
-                return Some(ModelRc::from(row_model));
-            }
-        }
-
-        None
+        let entry_ix = self.entry_ix.get()?;
+        let lens = self.lens.borrow();
+        let file = lens.get_file_entry(entry_ix, row)?;
+        Some(TableRow {
+            id: file.id,
+            name: file.name.as_str().into(),
+            path: file.name.as_str().into(),
+            size_str: format_size(file.size),
+            selected: false,
+        })
     }
 
-    fn set_row_data(&self, _row: usize, _data: Self::Data) {
-        // self.array.borrow_mut()[row] = data;
-        // self.notify.row_changed(row);
-    }
+    fn set_row_data(&self, _row: usize, _data: Self::Data) {}
 
     fn model_tracker(&self) -> &dyn slint::ModelTracker {
         &self.notify

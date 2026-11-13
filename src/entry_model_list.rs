@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use slint::{Model, ModelNotify, ModelRc, StandardListViewItem, VecModel};
+use slint::{Model, ModelNotify};
 
 use serious_organizer_lib::lens::Lens;
 
@@ -20,7 +20,6 @@ pub struct LensModelList {
 
 impl Model for LensModelList {
     type Data = TableRow;
-    // type Data = ModelRc<TableRow>;
 
     fn row_count(&self) -> usize {
         let count = self.lens.borrow().get_dir_count();
@@ -39,23 +38,6 @@ impl Model for LensModelList {
                 size_str: format_size(entry.size).into(),
                 selected: self.selected.borrow().contains(&entry.id),
             });
-
-            // let items = TableRow {
-            //     id: entry.id,
-            //     name: entry.name.as_str(),
-            //     path: entry.path.as_str(),
-            //     size_str: format_size(entry.size).as_str(),
-            //     selected: self.selected.borrow().contains(&entry.id),
-            // };
-
-            // let items = vec![
-            //     StandardListViewItem::from(entry.name.as_str()),
-            //     StandardListViewItem::from(entry.path.as_str()),
-            //     StandardListViewItem::from(format_size(entry.size).as_str()),
-            // ];
-
-            // let row_model = Rc::new(VecModel::from(items));
-            // Some(ModelRc::from(row_model))
         } else {
             None
         }

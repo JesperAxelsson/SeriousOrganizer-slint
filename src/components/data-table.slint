@@ -1,13 +1,48 @@
 import { ListView, Palette } from "std-widgets.slint";
 import { TableRow } from "../types.slint";
 
+component HeaderCell inherits Rectangle {
+    in property <string> title;
+    in property <bool> sortable;
+    in property <bool> active;
+    in property <bool> ascending;
+    in property <TextHorizontalAlignment> alignment: left;
+
+    callback clicked <=> touch.clicked;
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.title + (root.active ? (root.ascending ? " ▲" : " ▼") : "  ");
+        font-weight: 700;
+        vertical-alignment: center;
+        horizontal-alignment: root.alignment;
+        overflow: elide;
+    }
+
+    touch := TouchArea {
+        enabled: root.sortable;
+        mouse-cursor: root.sortable ? MouseCursor.pointer : MouseCursor.default;
+    }
+}
+
 export component DataTable inherits Rectangle {
     in property <[TableRow]> rows;
     in property <length> size-column-width: 90px;
     in property <length> row-height: 28px;
+
+    // Behavior switched
+    in property <bool> selectable: true;
+    in property <bool> sortable: true;
+
+    // Sort state, owned by caller and only displayed here
+    in property <int> sort-column: -1;
+    in property <bool> sort-ascending: true;
+
     // Last clicked row. -1 means none.
     in-out property <int> current-row: -1;
 
+    callback header-clicked(int); // column index
     callback row-clicked(int, bool, bool); // row, ctrl, shift
     callback row-activated(int);           // double click
     callback context-requested(int, length, length); // row, abs x, abs y
@@ -29,32 +64,44 @@ export component DataTable inherits Rectangle {
             height: root.row-height;
             background: Palette.alternate-background;
 
-            Text {
-                text: "Name";
+            HeaderCell {
+                title: "Name";
                 x: root.name-x;
                 height: parent.height;
                 width: root.name-width;
-                font-weight: 700;
-                vertical-alignment: center;
+                sortable: root.sortable;
+                active: root.sort-column == 0;
+                ascending: root.sort-ascending;
+                clicked => {
+                    root.header-clicked(0)
+                }
             }
 
-            Text {
-                text: "Path";
+            HeaderCell {
+                title: "Path";
                 x: root.path-x;
                 height: parent.height;
                 width: root.path-width;
-                font-weight: 700;
-                vertical-alignment: center;
+                sortable: root.sortable;
+                active: root.sort-column == 1;
+                ascending: root.sort-ascending;
+                clicked => {
+                    root.header-clicked(1)
+                }
             }
 
-            Text {
-                text: "Size";
+            HeaderCell {
+                title: "Size";
                 x: root.size-x;
                 height: parent.height;
                 width: root.size-column-width;
-                font-weight: 700;
-                vertical-alignment: center;
-                horizontal-alignment: right;
+                sortable: root.sortable;
+                active: root.sort-column == 2;
+                ascending: root.sort-ascending;
+                clicked => {
+                    root.header-clicked(2)
+                }
+                alignment: right;
             }
         }
 
