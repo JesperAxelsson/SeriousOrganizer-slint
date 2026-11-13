@@ -5,6 +5,7 @@ import {
     HorizontalBox,
     LineEdit,
     StandardTableView,
+    StandardListView,
 } from "std-widgets.slint";
 
 export struct LocationData {
@@ -13,7 +14,31 @@ export struct LocationData {
     path: string,
     size_str: string,
 }
-    
+
+component TabButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    callback clicked <=> touch.clicked;
+
+    Text {
+        text: root.text;
+        color: root.active ? #2196F3 : #666666;
+        font-weight: root.active ? 700 : 400;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    Rectangle {
+        width: parent.width;
+        height: 3px;
+        y: parent.height - self.height; // Align to bottom
+        background: root.active ? #2193F3 : transparent;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+    }
+}
 
 component EntryListView inherits StandardTableView {
     in-out property <int> current-entry;
@@ -111,22 +136,44 @@ export component AppWindow inherits Window {
     }
 
     VerticalBox {
-        // --- TAB BAR ---
-        HorizontalBox {
-            height: 5%;
+        padding: 5px;
+        padding-left: 20px;
+                    // spacing: 20px;
 
-            Button {
-                text: "Library";
-                clicked => {
-                    root.active-tab = 0;
+        // --- TAB BAR ---
+        Rectangle {
+            height: 45px;
+            // background: #f5f5f5;
+
+            HorizontalLayout {
+                    spacing: 20px;
+                TabButton {
+                    text: "Library";
+                    active: root.active-tab == 0;
+                    clicked => {
+                        root.active-tab = 0;
+                    }
+                }
+
+                TabButton {
+                    text: "Locations Settings";
+                    active: root.active-tab == 1;
+                    clicked => {
+                        root.active-tab = 1;
+                    }
+                }
+
+                // Take up remaining space
+                Rectangle {
+                    horizontal-stretch: 1;
                 }
             }
 
-            Button {
-                text: "Locations Settings";
-                clicked => {
-                    root.active-tab = 1;
-                }
+            Rectangle {
+                width: parent.width;
+                height: 1px;
+                y: parent.height - self.height;
+                background: #dddddd;
             }
         }
 
@@ -144,13 +191,6 @@ export component AppWindow inherits Window {
 
                     Button {
                         text: "Reload";
-                        clicked => {
-                            root.reload();
-                        }
-                    }
-
-                    Button {
-                        text: "Locations";
                         clicked => {
                             root.reload();
                         }
@@ -186,37 +226,51 @@ export component AppWindow inherits Window {
 
         // --- VIEW 0: MAIN LIBRARY
         if root.active-tab == 1: VerticalBox {
-            VerticalBox {
+            padding: 16px;
+            spacing: 16px;
+
+            Text {
+                text: "Settings";
+            }
+
+            HorizontalBox {
+                alignment: start;
                 Text {
-                    text: "Settings";
+                    text: "Managed Locations";
+                    font-size: 16px;
+                    vertical-alignment: center;
                 }
 
                 Button {
-                    text: "Add Location";
+                    text: "Add New Folder";
                     clicked => {
                         root.add_location();
                     }
                 }
+            }
 
-                ListView {
-                    for loc in root.locations: HorizontalBox {
-                        Text {
-                            text: loc.name;
-                        }
+            // StandardListView {
+            //     model: root.locations;
+            // }
+            
+            ListView {
+                for loc in root.locations: HorizontalBox {
+                    Text {
+                        text: loc.name;
+                    }
 
-                        Text {
-                            text: loc.path;
-                        }
+                    Text {
+                        text: loc.path;
+                    }
 
-                        Text {
-                            text: loc.size_str;
-                        }
+                    Text {
+                        text: loc.size_str;
+                    }
 
-                        Button {
-                            text: "Remove";
-                            clicked => {
-                                remove_location(loc.id)
-                            }
+                    Button {
+                        text: "Remove";
+                        clicked => {
+                            remove_location(loc.id)
                         }
                     }
                 }
