@@ -5,6 +5,7 @@ use slint::{ComponentHandle, SharedString, Weak};
 
 use serious_organizer_lib::lens::Lens;
 
+use crate::controllers::confirm::ConfirmController;
 use crate::controllers::context::{ContextController, Env};
 use crate::controllers::entry_kind::EntryKind;
 use crate::controllers::file_kind::FileKind;
@@ -34,6 +35,7 @@ pub struct App {
 
     rename: Rc<RenameController>,
     context: Rc<ContextController>,
+    confirm: Rc<ConfirmController>,
 }
 
 impl App {
@@ -42,6 +44,8 @@ impl App {
         let file_model = Rc::new(FileModelList::new(lens.clone()));
 
         let rename = Rc::new(RenameController::new(ui));
+        let confirm = Rc::new(ConfirmController::new(ui));
+
         let env = Env {
             lens: lens.clone(),
             rename: rename.clone(),
@@ -52,6 +56,7 @@ impl App {
                     f.update();
                 }
             }),
+            confirm: confirm.clone(),
         };
 
         let context = Rc::new(ContextController::new(ui, env));
@@ -77,6 +82,7 @@ impl App {
             ),
             context: context,
             rename: rename,
+            confirm: confirm,
         })
     }
 
@@ -106,6 +112,9 @@ impl App {
         // Context Menu
         ui.on_context_command(handler!(self.context.command(command)));
         ui.on_rename_confirmed(handler!(self.rename.confirmed(new_name)));
+
+        // Confirm Dialog
+        ui.on_confirm_answered(handler!(self.confirm.answered(yes, request)));
     }
 
     // ** Search handler ***

@@ -1,0 +1,79 @@
+import { VerticalBox, HorizontalBox, Palette, Button } from "std-widgets.slint";
+
+export component ConfirmDialog inherits Rectangle {
+    in-out property <string> title;
+    in-out property <string> message;
+    in-out property <string> confirm-text: "Yes";
+    in-out property <bool> show-cancel;
+
+    callback accepted();
+    callback cancelled();
+
+    // Swallow clicks so nothing behind the dialog gets them
+    TouchArea { }
+
+    key-scope := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.cancelled();
+                return accept;
+            }
+            if (event.text == Key.Return) {
+                root.accepted();
+                return accept;
+            }
+            return reject;
+        }
+    }
+
+    public function show-dialog(title: string, message: string, confirm-text: string, show-cancel: bool) {
+        root.title = title;
+        root.message = message;
+        root.confirm-text = confirm-text;
+        root.show-cancel = show-cancel;
+        root.visible = true;
+        key-scope.focus();
+    }
+
+    Rectangle {
+        width: 420px;
+        height: layout.preferred-height;
+        background: Palette.background;
+
+        layout := VerticalBox {
+            padding: 16px;
+            spacing: 12px;
+
+            Text {
+                text: root.title;
+                font-size: 16px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: root.message;
+                wrap: word-wrap;
+            }
+
+            HorizontalBox {
+                alignment: end;
+                spacing: 8px;
+
+                Button {
+                    text: root.confirm-text;
+                    primary: true;
+                    clicked => {
+                        root.accepted();
+                    }
+                }
+
+                if root.show-cancel: Button {
+                    text: "No";
+                    clicked => {
+                        root.cancelled();
+                    }
+                }
+            }
+        }
+    }
+}

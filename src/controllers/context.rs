@@ -1,12 +1,16 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{AppState, AppWindow, MenuEntry, controllers::rename::RenameController};
+use crate::{
+    AppState, AppWindow, MenuEntry,
+    controllers::{confirm::ConfirmController, rename::RenameController},
+};
 use serious_organizer_lib::lens::Lens;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel, Weak};
 
 pub struct Env {
     pub lens: Rc<RefCell<Lens>>,
     pub rename: Rc<RenameController>,
+    pub confirm: Rc<ConfirmController>,
     pub changed: Rc<dyn Fn()>,
 }
 

@@ -86,7 +86,7 @@ impl ContextActions for EntryKind {
                 }
             }
             "rename" => self.rename(&env, id),
-            "move-to-dir" => println!("Move to dir"),
+            "move-to-dir" => self.move_to_dir(&env),
             _ => eprintln!("Unknown entry command: {command}"),
         }
     }
@@ -119,5 +119,48 @@ impl EntryKind {
                 Err(err) => eprintln!("Entry rename failed {err:?}"),
             }
         });
+    }
+
+    fn move_to_dir(&self, env: &Env) {
+        let ids = self.model.selected_ids();
+        if ids.is_empty() {
+            return;
+        }
+
+        let lens = env.lens.clone();
+        let changed = env.changed.clone();
+        let confirm = env.confirm.clone();
+
+        env.confirm.confirm(
+            "Move to directory",
+            &format!("Move {} selected entries to a dir?", ids.len()),
+            move || {
+                let mut errors: Vec<String> = Vec::new();
+                {
+                    let mut lens = lens.borrow_mut();
+                    for id in ids {
+                        let Some(entry) = lens.get_dir_entry_by_id(id).cloned() else {
+                            continue;
+                        };
+
+                        // Only plain files are moved
+                        if !std::fs::metadata(&entry.path).map(|m| m.is_file()).is_ok() {
+                            continue;
+                        };
+
+                        // Move the entry to a dir
+                        if let Err(err) = lens.move_file_entry_to_dir_entry(&entry) {
+                            errors.push(format!("{}: {}", entry.name, err));
+                        }
+                    }
+                }
+
+                changed();
+
+                if !errors.is_empty() {
+                    confirm.notify("Move failed", &errors.join("\n"));
+                }
+            },
+        )
     }
 }

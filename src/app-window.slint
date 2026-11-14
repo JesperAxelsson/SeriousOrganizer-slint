@@ -14,6 +14,7 @@ import { LocationData, TableRow } from "types.slint";
 import { LibraryView } from "views/library-view.slint";
 import { LocationsView } from "views/locations-view.slint";
 import { RenameDialog } from "components/rename-dialog.slint";
+import { ConfirmDialog } from "components/confirm-dialog.slint";
 
 // Re-exports
 export { LocationData, TableRow } from "types.slint";
@@ -38,32 +39,19 @@ export component AppWindow inherits Window {
     callback remove_location(int);
     in property <[LocationData]> locations;
 
+    // Confirm dialog
+    in-out property <int> confirm-request;
+    callback confirm-answered(bool, int); // anser, request id
+
+    public function open-confirm(title: string, message: string, confirm-text: string, show-cancel: bool, request: int) {
+        root.confirm-request = request;
+        confirm-dialog.show-dialog(title, message, confirm-text, show-cancel);
+    }
+
     public function open-rename-dialog(current-name: string) {
         rename-dialog.show-dialog(current-name);
     }
 
-    rename-dialog := RenameDialog{
-        visible: false;
-        width: 100%;
-        height: 100%;
-
-        accepted(new-name) => {
-            self.visible = false;
-            root.rename-confirmed(new-name);
-        }
-        cancelled => {
-            self.visible = false;
-        }
-    }
-
-    context-menu := ContextMenu {
-        x: root.menu-x;
-        y: root.menu-y;
-        entries <=>  AppState.menu-entries;
-        context-command(command) => {
-            root.context-command(command);
-        }
-    }
 
     VerticalBox {
         padding: 5px;
@@ -132,6 +120,45 @@ export component AppWindow inherits Window {
             remove-location(id) => {
                 root.remove_location(id);
             }
+        }
+    }
+
+    confirm-dialog := ConfirmDialog {
+        visible: false;
+        width: 100%;
+        height: 100%;
+
+        accepted => {
+            self.visible = false;
+            root.confirm-answered(true, root.confirm-request);
+        }
+
+        cancelled => {
+            self.visible = false;
+            root.confirm-answered(false, root.confirm-request);
+        }
+    }
+
+    rename-dialog := RenameDialog {
+        visible: false;
+        // width: 100%;
+        // height: 100%;
+
+        accepted(new-name) => {
+            self.visible = false;
+            root.rename-confirmed(new-name);
+        }
+        cancelled => {
+            self.visible = false;
+        }
+    }
+
+    context-menu := ContextMenu {
+        x: root.menu-x;
+        y: root.menu-y;
+        entries <=> AppState.menu-entries;
+        context-command(command) => {
+            root.context-command(command);
         }
     }
 }

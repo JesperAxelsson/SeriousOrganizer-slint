@@ -80,9 +80,9 @@ impl EntryModelList {
         self.notify.reset();
     }
 
-    // pub fn selected_ids(&self) -> Vec<i32> {
-    //     self.selected.borrow().iter().copied().collect()
-    // }
+    pub fn selected_ids(&self) -> Vec<i32> {
+        self.selection.ids()
+    }
 
     pub fn click(&self, row: usize, ctrl: bool, shift: bool) {
         let changed = {
