@@ -5,9 +5,10 @@ use slint::{ComponentHandle, SharedString, Weak};
 
 use serious_organizer_lib::lens::Lens;
 
-use crate::controllers::context::ContextController;
+use crate::controllers::context::{ContextController, Env};
 use crate::controllers::entry_kind::EntryKind;
 use crate::controllers::file_kind::FileKind;
+use crate::controllers::rename::RenameController;
 use crate::controllers::table::{TableController, TableKind};
 use crate::entry_model_list::EntryModelList;
 use crate::file_model_list::FileModelList;
@@ -31,6 +32,7 @@ pub struct App {
     pub entry_table: TableController<EntryKind>,
     pub file_table: TableController<FileKind>,
 
+    rename: Rc<RenameController>,
     context: Rc<ContextController>,
 }
 
@@ -39,14 +41,20 @@ impl App {
         let entry_model = Rc::new(EntryModelList::new(lens.clone()));
         let file_model = Rc::new(FileModelList::new(lens.clone()));
 
-        let on_changed = {
-            let (e, f) = (entry_model.clone(), file_model.clone());
-            move || {
-                e.update();
-                f.update();
-            }
+        let rename = Rc::new(RenameController::new(ui));
+        let env = Env {
+            lens: lens.clone(),
+            rename: rename.clone(),
+            changed: Rc::new({
+                let (e, f) = (entry_model.clone(), file_model.clone());
+                move || {
+                    e.update();
+                    f.update();
+                }
+            }),
         };
-        let context = Rc::new(ContextController::new(ui, lens.clone(), on_changed));
+
+        let context = Rc::new(ContextController::new(ui, env));
 
         Rc::new(App {
             ui: ui.as_weak(),
@@ -68,6 +76,7 @@ impl App {
                 }),
             ),
             context: context,
+            rename: rename,
         })
     }
 
@@ -94,9 +103,9 @@ impl App {
 
         ui.on_file_context_opened(handler!(self.file_table.context_opened(row)));
 
-        // Shared?
+        // Context Menu
         ui.on_context_command(handler!(self.context.command(command)));
-        ui.on_rename_confirmed(handler!(self.context.rename_confirmed(new_name)));
+        ui.on_rename_confirmed(handler!(self.rename.confirmed(new_name)));
     }
 
     // ** Search handler ***

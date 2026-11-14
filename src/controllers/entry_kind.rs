@@ -1,9 +1,7 @@
 use std::rc::Rc;
 
-use serious_organizer_lib::lens::Lens;
-
 use crate::MenuEntry;
-use crate::controllers::context::{ContextController, menu_entry};
+use crate::controllers::context::{Env, menu_entry};
 use crate::controllers::table::open_path;
 use crate::{
     controllers::{context::ContextActions, table::TableKind},
@@ -75,11 +73,11 @@ impl ContextActions for EntryKind {
         ]
     }
 
-    fn run(&self, ctx: &ContextController, command: &str, id: i32) {
+    fn run(&self, env: &Env, command: &str, id: i32) {
         match command {
             "open" => {
-                let path = ctx
-                    .lens()
+                let path = env
+                    .lens
                     .borrow()
                     .get_dir_entry_by_id(id)
                     .map(|e| e.path.clone());
@@ -87,21 +85,39 @@ impl ContextActions for EntryKind {
                     open_path(&path);
                 }
             }
-            "rename" => ctx.start_rename(),
-            _ => eprintln!("Unknown command: {command}"),
+            "rename" => self.rename(&env, id),
+            "move-to-dir" => println!("Move to dir"),
+            _ => eprintln!("Unknown entry command: {command}"),
         }
     }
+}
 
-    fn name(&self, lens: &serious_organizer_lib::lens::Lens, id: i32) -> Option<String> {
-        lens.get_dir_entry_by_id(id).map(|e| e.name.clone())
-    }
-
-    fn rename(&self, lens: &mut Lens, id: i32, new_name: &str) -> Result<(), String> {
-        let entry = lens
+impl EntryKind {
+    fn rename(&self, env: &Env, id: i32) {
+        let Some(name) = env
+            .lens
+            .borrow()
             .get_dir_entry_by_id(id)
-            .cloned()
-            .ok_or("entry not found")?;
-        lens.rename_entry(entry, new_name)
-            .map_err(|e| format!("{e:?}"))
+            .map(|e| e.name.clone())
+        else {
+            return;
+        };
+
+        let lens = env.lens.clone();
+        let changed = env.changed.clone();
+
+        env.rename.ask(&name, move |new_name| {
+            let result = {
+                let mut lens = lens.borrow_mut();
+                let Some(entry) = lens.get_dir_entry_by_id(id).cloned() else {
+                    return;
+                };
+                lens.rename_entry(entry, &new_name)
+            };
+            match result {
+                Ok(()) => changed(),
+                Err(err) => eprintln!("Entry rename failed {err:?}"),
+            }
+        });
     }
 }

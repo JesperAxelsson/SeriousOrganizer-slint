@@ -1,15 +1,10 @@
 use std::rc::Rc;
 
-use serious_organizer_lib::lens::Lens;
-
 use crate::MenuEntry;
-use crate::controllers::context::menu_entry;
+use crate::controllers::context::{Env, menu_entry};
 use crate::controllers::table::open_path;
 use crate::{
-    controllers::{
-        context::{ContextActions, ContextController},
-        table::TableKind,
-    },
+    controllers::{context::ContextActions, table::TableKind},
     file_model_list::FileModelList,
 };
 
@@ -77,11 +72,11 @@ impl ContextActions for FileKind {
         ]
     }
 
-    fn run(&self, ctx: &ContextController, command: &str, id: i32) {
+    fn run(&self, env: &Env, command: &str, id: i32) {
         match command {
             "open" => {
                 let path = {
-                    let lens = ctx.lens().borrow();
+                    let lens = env.lens.borrow();
                     lens.file_id_to_ix(id)
                         .and_then(|ix| lens.get_file_entry(ix))
                         .map(|f| f.path.clone())
@@ -90,17 +85,14 @@ impl ContextActions for FileKind {
                     open_path(&path);
                 }
             }
+            "rename" => self.rename(env, id),
             _ => eprintln!("Unknown file command: {command}"),
         }
     }
+}
 
-    fn name(&self, lens: &serious_organizer_lib::lens::Lens, id: i32) -> Option<String> {
-        lens.file_id_to_ix(id)
-            .and_then(|ix| lens.get_file_entry(ix))
-            .map(|f| f.name.clone())
-    }
-
-    fn rename(&self, _lens: &mut Lens, _id: i32, _new_name: &str) -> Result<(), String> {
-        Err("renaming files is not implemented yet.".into())
+impl FileKind {
+    fn rename(&self, _env: &Env, _id: i32) {
+        eprintln!("File rename is not implemented yet.");
     }
 }
