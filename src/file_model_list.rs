@@ -1,5 +1,4 @@
-use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use slint::{Model, ModelNotify};

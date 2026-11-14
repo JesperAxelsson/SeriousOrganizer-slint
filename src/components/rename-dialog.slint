@@ -3,6 +3,7 @@ import {
     HorizontalBox,
     Button,
     LineEdit,
+    Palette,
 } from "std-widgets.slint";
 
 export component RenameDialog inherits Rectangle {
@@ -41,7 +42,6 @@ export component RenameDialog inherits Rectangle {
     Rectangle {
         width: 420px;
         height: dialog-layout.preferred-height;
-        background: white;
         border-color: #cccccc;
         border-width: 1px;
         border-radius: 6px;
@@ -59,8 +59,8 @@ export component RenameDialog inherits Rectangle {
             }
 
             Text {
-                text: "Original: " + root.original-name;
-                color: #666666;
+                text: "Original: " + root.original-name + " End?";
+                color: Palette.alternate-foreground;
                 overflow: elide;
             }
 
