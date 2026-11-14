@@ -13,6 +13,7 @@ import { TabButton } from "components/tab-button.slint";
 import { LocationData, TableRow } from "types.slint";
 import { LibraryView } from "views/library-view.slint";
 import { LocationsView } from "views/locations-view.slint";
+import { RenameDialog } from "components/rename-dialog.slint";
 
 // Re-exports
 export { LocationData, TableRow } from "types.slint";
@@ -26,6 +27,7 @@ export component AppWindow inherits Window {
     property <length> menu-x;
     property <length> menu-y;
     callback context-command(string);
+    callback rename-confirmed(string);
 
     // List actions
     callback entry-context-opened(int);
@@ -35,6 +37,24 @@ export component AppWindow inherits Window {
     callback add_location();
     callback remove_location(int);
     in property <[LocationData]> locations;
+
+    public function open-rename-dialog(current-name: string) {
+        rename-dialog.show-dialog(current-name);
+    }
+
+    rename-dialog := RenameDialog{
+        visible: false;
+        width: 100%;
+        height: 100%;
+
+        accepted(new-name) => {
+            self.visible = false;
+            root.rename-confirmed(new-name);
+        }
+        cancelled => {
+            self.visible = false;
+        }
+    }
 
     context-menu := ContextMenu {
         x: root.menu-x;

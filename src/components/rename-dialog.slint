@@ -1,0 +1,96 @@
+import {
+    VerticalBox,
+    HorizontalBox,
+    Button,
+    LineEdit,
+} from "std-widgets.slint";
+
+export component RenameDialog inherits Rectangle {
+    in property <string> original-name;
+    in-out property <string> new-name;
+
+    callback accepted(string);
+    callback cancelled();
+
+    // Dimmed modal backdrop that blocks clicks behind the dialog
+    background: #00000066;
+
+    // Eat background clicks so users don't click rows behind the touch area
+    TouchArea { }
+
+    // Escape key handler
+    key-scope := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.cancelled();
+                return accept;
+            }
+            return reject;
+        }
+    }
+
+    // Focus and select text when shown
+    public function show-dialog(current-name: string) {
+        // root.original-name = current-name;
+        root.new-name = current-name;
+        root.visible = true;
+        // input.f
+    }
+
+    // Centered dialog 
+    Rectangle {
+        width: 420px;
+        height: dialog-layout.preferred-height;
+        background: white;
+        border-color: #cccccc;
+        border-width: 1px;
+        border-radius: 6px;
+        drop-shadow-blur: 12px;
+        drop-shadow-color: #00000044;
+
+        dialog-layout :=  VerticalBox {
+            padding: 16px;
+            spacing: 12px;
+
+            Text {
+                text: "Rename Entry";
+                font-size: 16px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: "Original: " + root.original-name;
+                color: #666666;
+                overflow: elide;
+            }
+
+            input := LineEdit {
+                text <=> root.new-name;
+                accepted(text) => {
+                    root.accepted(text);
+                }
+            }
+
+            HorizontalBox {
+                alignment: end;
+                spacing: 8px;
+
+                Button {
+                    text: "Ok";
+                    primary: true;
+                    enabled: root.new-name != "" && root.new-name != root.original-name;
+                    clicked => {
+                        root.accepted(root.new-name);
+                    }
+                }
+
+                Button {
+                    text: "Cancel";
+                    clicked => {
+                        root.cancelled();
+                    }
+                }
+            }
+        }
+    }
+}

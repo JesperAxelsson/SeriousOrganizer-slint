@@ -29,6 +29,22 @@ export component ContextMenu inherits PopupWindow {
                     }
                 }
             }
+
+            Rectangle {
+                height: 30px;
+                background: touch-open.has-hover ? #eeeeee : transparent;
+                Text {
+                    text: "Rename";
+                    x: 10px;
+                    vertical-alignment: center;
+                }
+
+                touch-rename := TouchArea {
+                    clicked => {
+                        root.context-command("Rename");
+                    }
+                }
+            }
         }
     }
 }

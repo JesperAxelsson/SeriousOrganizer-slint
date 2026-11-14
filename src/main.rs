@@ -1,7 +1,7 @@
 // Prevent console window in addition to Slint window in Windows release builds when, e.g., starting the app via file manager. Ignored on other platforms.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use slint::{Global, ModelRc};
@@ -35,6 +35,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let ui = AppWindow::new()?;
     let state = ui.global::<AppState>();
+    let context_entry_id = Rc::new(Cell::new(None::<i32>));
 
     // Setup reload controls, we don't need to keep a variable around
     ReloadController::new(ui.as_weak(), entry_model.clone());
@@ -85,8 +86,65 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
-    ui.on_context_command(|command| {
-        println!("Got command: '{command}'");
+    ui.on_entry_context_opened({
+        let lens_model = entry_model.clone();
+        let lens = lens.clone();
+        let context_entry_id = context_entry_id.clone();
+        move |row| {
+            if row >= 0 {
+                lens_model.select_for_context(row as usize);
+                let id = lens.borrow().get_dir_entry(row as usize).map(|e| e.id);
+                context_entry_id.set(id);
+            }
+        }
+    });
+
+    ui.on_context_command({
+        let ui_handle = ui.as_weak();
+        let lens = lens.clone();
+        let context_entry_id = context_entry_id.clone();
+        move |command| {
+            println!("Got command: '{command}'");
+            if command == "Rename" {
+                let Some(entry_id) = context_entry_id.get() else {
+                    return;
+                };
+                if let Some(entry) = lens.borrow().get_dir_entry_by_id(entry_id) {
+                    if let Some(ui) = ui_handle.upgrade() {
+                        ui.invoke_open_rename_dialog(entry.name.as_str().into());
+                    }
+                }
+            }
+        }
+    });
+
+    ui.on_rename_confirmed({
+        let lens = lens.clone();
+        let entry_model = entry_model.clone();
+        let file_model = file_model.clone();
+        let context_entry_id = context_entry_id.clone();
+
+        move |new_name| {
+            {
+                let Some(entry_id) = context_entry_id.get() else {
+                    return;
+                };
+
+                let mut lens = lens.borrow_mut();
+                let Some(entry) = lens.get_dir_entry_by_id(entry_id).cloned() else {
+                    return;
+                };
+
+                println!("Rename from {} to {}", entry.name, &new_name);
+                if let Err(err) = lens.rename_entry(entry, &new_name) {
+                    eprintln!("Error while renaming file: {:?}", err);
+                    println!("Show error dialog...");
+                }
+            }
+
+            entry_model.update();
+            file_model.update();
+        }
     });
 
     // Setup File table
