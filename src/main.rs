@@ -23,6 +23,12 @@ mod location_model_list;
 mod reload_controller;
 mod selection;
 
+#[derive(Clone, Copy, Debug)]
+enum ContextTarget {
+    Entry(i32),
+    File(i32),
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     println!("Hello, world!");
 
@@ -36,6 +42,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let ui = AppWindow::new()?;
     let state = ui.global::<AppState>();
+    let context_target = Rc::new(Cell::new(None::<ContextTarget>));
     let context_entry_id = Rc::new(Cell::new(None::<i32>));
 
     // Setup reload controls, we don't need to keep a variable around
@@ -64,10 +71,14 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     ui.on_entry_context_opened({
-        let lens_model = entry_model.clone();
+        let entry_model = entry_model.clone();
+        let lens = lens.clone();
+        let target = context_target.clone();
         move |row| {
             if row >= 0 {
-                lens_model.select_for_context(row as usize);
+                entry_model.select_for_context(row as usize);
+                let id = lens.borrow().get_dir_entry(row as usize).map(|e| e.id);
+                target.set(id.map(ContextTarget::Entry));
             }
         }
     });
@@ -123,28 +134,34 @@ fn main() -> Result<(), slint::PlatformError> {
         let lens = lens.clone();
         let entry_model = entry_model.clone();
         let file_model = file_model.clone();
-        let context_entry_id = context_entry_id.clone();
+        let target = context_target.clone();
+        // let context_entry_id = context_entry_id.clone();
 
         move |new_name| {
-            {
-                let Some(entry_id) = context_entry_id.get() else {
-                    return;
-                };
+            println!("Rename confirmed {:?}", target.get());
+            let Some(target) = target.get() else { return };
+            match target {
+                ContextTarget::Entry(id) => {
+                    {
+                        let mut lens = lens.borrow_mut();
+                        let Some(entry) = lens.get_dir_entry_by_id(id).cloned() else {
+                            return;
+                        };
 
-                let mut lens = lens.borrow_mut();
-                let Some(entry) = lens.get_dir_entry_by_id(entry_id).cloned() else {
-                    return;
-                };
+                        println!("Rename from {} to {}", entry.name, &new_name);
+                        if let Err(err) = lens.rename_entry(entry, &new_name) {
+                            eprintln!("Error while renaming file: {:?}", err);
+                            println!("Show error dialog...");
+                        }
+                    }
 
-                println!("Rename from {} to {}", entry.name, &new_name);
-                if let Err(err) = lens.rename_entry(entry, &new_name) {
-                    eprintln!("Error while renaming file: {:?}", err);
-                    println!("Show error dialog...");
+                    entry_model.update();
+                    file_model.update();
+                }
+                ContextTarget::File(id) => {
+                    println!("Rename file is not implemented yet. id: {}", id);
                 }
             }
-
-            entry_model.update();
-            file_model.update();
         }
     });
 
@@ -174,31 +191,19 @@ fn main() -> Result<(), slint::PlatformError> {
         move |column| {
             let state = state_handle.unwrap();
 
-            let sort_column = match column {
-                0 => SortColumn::Name,
-                1 => SortColumn::Path,
-                2 => SortColumn::Size,
-                _ => return,
-            };
+            if let Some((sort_column, order, ascending)) = next_sort(
+                column,
+                state.get_entry_sort_column(),
+                state.get_entry_sort_ascending(),
+            ) {
+                keep_current_entry(&state, &lens, || {
+                    lens.borrow_mut().order_by(sort_column, order);
+                    lens_model.update();
+                });
 
-            let ascending = if state.get_entry_sort_column() == column {
-                !state.get_entry_sort_ascending()
-            } else {
-                true
-            };
-            let order = if ascending {
-                SortOrder::Asc
-            } else {
-                SortOrder::Desc
-            };
-
-            keep_current_entry(&state, &lens, || {
-                lens.borrow_mut().order_by(sort_column, order);
-                lens_model.update();
-            });
-
-            state.set_entry_sort_column(column);
-            state.set_entry_sort_ascending(ascending);
+                state.set_entry_sort_column(column);
+                state.set_entry_sort_ascending(ascending);
+            }
         }
     });
 
@@ -211,31 +216,19 @@ fn main() -> Result<(), slint::PlatformError> {
         move |column| {
             let state = state_handle.unwrap();
 
-            let sort_column = match column {
-                0 => SortColumn::Name,
-                1 => SortColumn::Path,
-                2 => SortColumn::Size,
-                _ => return,
-            };
+            if let Some((sort_column, order, ascending)) = next_sort(
+                column,
+                state.get_file_sort_column(),
+                state.get_file_sort_ascending(),
+            ) {
+                keep_current_file(&state, &lens, || {
+                    lens.borrow_mut().order_files_by(sort_column, order);
+                    file_model.update();
+                });
 
-            let ascending = if state.get_file_sort_column() == column {
-                !state.get_file_sort_ascending()
-            } else {
-                true
-            };
-            let order = if ascending {
-                SortOrder::Asc
-            } else {
-                SortOrder::Desc
-            };
-
-            keep_current_file(&state, &lens, || {
-                lens.borrow_mut().order_files_by(sort_column, order);
-                file_model.update();
-            });
-
-            state.set_file_sort_column(column);
-            state.set_file_sort_ascending(ascending);
+                state.set_file_sort_column(column);
+                state.set_file_sort_ascending(ascending);
+            }
         }
     });
 
@@ -249,10 +242,14 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     ui.on_file_context_opened({
-        let lens_model = file_model.clone();
+        let file_model = file_model.clone();
+        let lens = lens.clone();
+        let target = context_target.clone();
         move |row| {
             if row >= 0 {
-                lens_model.select_for_context(row as usize);
+                file_model.select_for_context(row as usize);
+                let id = lens.borrow().get_file_entry(row as usize).map(|e| e.id);
+                target.set(id.map(ContextTarget::File));
             }
         }
     });
@@ -351,4 +348,31 @@ fn keep_current_file(state: &AppState, lens: &RefCell<Lens>, change: impl FnOnce
             .unwrap_or(-1);
         state.set_current_file(new_ix);
     }
+}
+
+fn next_sort(
+    column: i32,
+    cur_column: i32,
+    cur_ascending: bool,
+) -> Option<(SortColumn, SortOrder, bool)> {
+    let sort_column = match column {
+        0 => SortColumn::Name,
+        1 => SortColumn::Path,
+        2 => SortColumn::Size,
+        _ => return None,
+    };
+
+    let ascending = if cur_column == column {
+        !cur_ascending
+    } else {
+        true
+    };
+
+    let order = if ascending {
+        SortOrder::Asc
+    } else {
+        SortOrder::Desc
+    };
+
+    Some((sort_column, order, ascending))
 }
