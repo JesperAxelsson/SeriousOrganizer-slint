@@ -21,6 +21,7 @@ mod file_model_list;
 mod helper;
 mod location_model_list;
 mod reload_controller;
+mod selection;
 
 fn main() -> Result<(), slint::PlatformError> {
     println!("Hello, world!");

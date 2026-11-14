@@ -1,5 +1,4 @@
-use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use slint::{Model, ModelNotify};
@@ -8,14 +7,26 @@ use serious_organizer_lib::lens::Lens;
 
 use crate::TableRow;
 use crate::helper::format_size;
+use crate::selection::{RowSource, Selection};
+
+struct EntryRows<'a>(&'a Lens);
+
+impl RowSource for EntryRows<'_> {
+    fn count(&self) -> usize {
+        self.0.get_dir_count()
+    }
+    fn id_at(&self, row: usize) -> Option<i32> {
+        self.0.get_dir_entry(row).map(|e| e.id)
+    }
+    fn row_of(&self, id: i32) -> Option<usize> {
+        self.0.entry_id_to_ix(id)
+    }
+}
 
 pub struct EntryModelList {
     pub lens: Rc<RefCell<Lens>>,
     notify: ModelNotify,
-    /// Selected entry ids. Ids, not rows, so selection survives search/sort/reload.
-    selected: RefCell<HashSet<i32>>,
-    /// Entry id that shift-click ranges start from
-    anchor: Cell<Option<i32>>,
+    selection: Selection,
 }
 
 impl Model for EntryModelList {
@@ -32,7 +43,7 @@ impl Model for EntryModelList {
                 name: entry.name.as_str().into(),
                 path: entry.path.as_str().into(),
                 size_str: format_size(entry.size).into(),
-                selected: self.selected.borrow().contains(&entry.id),
+                selected: self.selection.contains(entry.id),
             });
         } else {
             None
@@ -55,22 +66,17 @@ impl EntryModelList {
         Self {
             lens,
             notify: ModelNotify::default(),
-            selected: RefCell::new(HashSet::new()),
-            anchor: Cell::new(None),
+            selection: Selection::new(),
         }
     }
 
     pub fn update(&self) {
-        // Drop ids of entries that no longer exist (e.g. after a reload).
-        // Entries that are only filtered out by a search stay selected.
         {
             let lens = self.lens.borrow();
-            self.selected
-                .borrow_mut()
-                .retain(|id| lens.get_dir_entry_by_id(*id).is_some());
+            self.selection
+                .retain(|id| lens.get_dir_entry_by_id(id).is_some());
         }
 
-        // println!("Reset the thing!");
         self.notify.reset();
     }
 
@@ -79,71 +85,20 @@ impl EntryModelList {
     // }
 
     pub fn click(&self, row: usize, ctrl: bool, shift: bool) {
-        let lens = self.lens.borrow();
-        let Some(id) = lens.get_dir_entry(row).map(|e| e.id) else {
-            return;
+        let changed = {
+            let lens = self.lens.borrow();
+            self.selection.click(&EntryRows(&lens), row, ctrl, shift)
         };
 
-        let mut selection = if ctrl | shift {
-            self.selected.borrow().clone()
-        } else {
-            HashSet::new()
-        };
-
-        let anchor_row = self.anchor.get().and_then(|a| lens.entry_id_to_ix(a));
-
-        match (shift, anchor_row) {
-            (true, Some(anchor_row)) => {
-                let (from, to) = if anchor_row <= row {
-                    (anchor_row, row)
-                } else {
-                    (row, anchor_row)
-                };
-
-                for ix in from..=to {
-                    if let Some(e) = lens.get_dir_entry(ix) {
-                        selection.insert(e.id);
-                    }
-                }
-            }
-            _ => {
-                if ctrl && selection.contains(&id) {
-                    selection.remove(&id);
-                } else {
-                    selection.insert(id);
-                }
-
-                self.anchor.set(Some(id));
-            }
-        }
-
-        drop(lens);
-        self.replace_selection(selection);
+        changed.into_iter().for_each(|r| self.notify.row_changed(r));
     }
 
     pub fn select_for_context(&self, row: usize) {
-        let id = match self.lens.borrow().get_dir_entry(row) {
-            Some(e) => e.id,
-            None => return,
+        let changed = {
+            let lens = self.lens.borrow();
+            self.selection.select_for_context(&EntryRows(&lens), row)
         };
 
-        if !self.selected.borrow().contains(&id) {
-            self.anchor.set(Some(id));
-            self.replace_selection(HashSet::from([id]));
-        }
-    }
-
-    fn replace_selection(&self, new: HashSet<i32>) {
-        let old = std::mem::replace(&mut *self.selected.borrow_mut(), new);
-
-        let lens = self.lens.borrow();
-        let new = self.selected.borrow();
-        for row in 0..lens.get_dir_count() {
-            if let Some(entry) = lens.get_dir_entry(row) {
-                if old.contains(&entry.id) != new.contains(&entry.id) {
-                    self.notify.row_changed(row);
-                }
-            }
-        }
+        changed.into_iter().for_each(|r| self.notify.row_changed(r));
     }
 }
