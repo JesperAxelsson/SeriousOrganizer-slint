@@ -41,8 +41,6 @@ fn main() -> Result<(), slint::PlatformError> {
     ReloadController::new(ui.as_weak(), app.entry_model.clone());
     reload_locations(&ui, &lens.borrow());
 
-    // ===== Setup message queue =====
-
     // Setup Entry table
     state.set_items(ModelRc::new(app.entry_model.clone()));
 

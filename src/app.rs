@@ -45,6 +45,10 @@ impl App {
 
     pub fn wire(self: &Rc<Self>, ui: &AppWindow) {
         let state = ui.global::<AppState>();
+
+        // Search
+        state.on_search_text_changed(handler!(self.on_search_text_changed(text)));
+
         // Entry
         state.on_entry_changed(handler!(self.entry_changed(row)));
         state.on_entry_clicked(handler!(self.entry_clicked(row, ctrl, shift)));
@@ -52,9 +56,6 @@ impl App {
         state.on_entry_header_clicked(handler!(self.on_entry_header_clicked(column)));
 
         ui.on_entry_context_opened(handler!(self.on_entry_context_opened(row)));
-
-        // Wait a bit with this one.
-        state.on_search_text_changed(handler!(self.on_search_text_changed(text)));
 
         // File
         // state.on_file_changed(handler!(self.file_changed(row)));
@@ -193,7 +194,7 @@ impl App {
             state.get_file_sort_ascending(),
         ) {
             keep_current_file(&state, &self.lens, || {
-                self.lens.borrow_mut().order_by(sort_column, order);
+                self.lens.borrow_mut().order_files_by(sort_column, order);
                 self.file_model.update();
             });
 
@@ -217,7 +218,7 @@ impl App {
             return;
         }
 
-        if let Some(file) = self.lens.borrow().get_dir_entry(row as usize) {
+        if let Some(file) = self.lens.borrow().get_file_entry(row as usize) {
             if let Err(err) = open::that_detached(&file.path) {
                 eprintln!("Failed to open '{}': {err}", file.path);
             }
