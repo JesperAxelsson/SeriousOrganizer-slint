@@ -16,6 +16,7 @@ use crate::reload_controller::ReloadController;
 
 mod app;
 mod config;
+mod controllers;
 mod entry_model_list;
 mod file_model_list;
 mod helper;
