@@ -12,6 +12,8 @@ export component ConfirmDialog inherits Rectangle {
     // Swallow clicks so nothing behind the dialog gets them
     TouchArea { }
 
+    background: #00000066;
+
     key-scope := FocusScope {
         key-pressed(event) => {
             if (event.text == Key.Escape) {
@@ -39,7 +41,10 @@ export component ConfirmDialog inherits Rectangle {
         width: 420px;
         height: layout.preferred-height;
         background: Palette.background;
-
+        border-color: #cccccc;
+        border-width: 1px;
+        border-radius: 6px;
+        
         layout := VerticalBox {
             padding: 16px;
             spacing: 12px;
