@@ -1,3 +1,28 @@
+import { Palette } from "std-widgets.slint";
+
+component Option inherits Rectangle {
+    height: 30px;
+    background: touch-option.has-hover ? Palette.selection-background : transparent;
+
+    in property <string> name;
+
+    callback clicked();
+
+    Text {
+        text: root.name;
+        x: 10px;
+        vertical-alignment: center;
+        color: touch-option.has-hover ? Palette.selection-foreground : Palette.foreground;
+    }
+
+    touch-option := TouchArea {
+
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component ContextMenu inherits PopupWindow {
     width: 150px;
     close-policy: PopupClosePolicy.close-on-click-outside;
@@ -5,7 +30,7 @@ export component ContextMenu inherits PopupWindow {
     callback context-command(string);
 
     Rectangle {
-        background: white;
+        background: Palette.background;
         border-color: lightgray;
         border-width: 1px;
         drop-shadow-blur: 5px;
@@ -14,35 +39,17 @@ export component ContextMenu inherits PopupWindow {
         VerticalLayout {
             padding: 4px;
 
-            Rectangle {
-                height: 30px;
-                background: touch-open.has-hover ? #eeeeee : transparent;
-                Text {
-                    text: "Open file";
-                    x: 10px;
-                    vertical-alignment: center;
-                }
-
-                touch-open := TouchArea {
-                    clicked => {
-                        root.context-command("file-open");
-                    }
+            Option {
+                name: "Open file";
+                clicked => {
+                    root.context-command("file-open");
                 }
             }
 
-            Rectangle {
-                height: 30px;
-                background: touch-open.has-hover ? #eeeeee : transparent;
-                Text {
-                    text: "Rename";
-                    x: 10px;
-                    vertical-alignment: center;
-                }
-
-                touch-rename := TouchArea {
-                    clicked => {
-                        root.context-command("Rename");
-                    }
+            Option {
+                name: "Rename";
+                clicked => {
+                    root.context-command("Rename");
                 }
             }
         }

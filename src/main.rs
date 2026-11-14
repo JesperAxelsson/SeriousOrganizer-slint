@@ -70,19 +70,6 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
-    ui.on_entry_context_opened({
-        let entry_model = entry_model.clone();
-        let lens = lens.clone();
-        let target = context_target.clone();
-        move |row| {
-            if row >= 0 {
-                entry_model.select_for_context(row as usize);
-                let id = lens.borrow().get_dir_entry(row as usize).map(|e| e.id);
-                target.set(id.map(ContextTarget::Entry));
-            }
-        }
-    });
-
     state.on_entry_activated({
         let lens = lens.clone();
         move |row| {
