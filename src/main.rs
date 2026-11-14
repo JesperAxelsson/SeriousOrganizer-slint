@@ -43,7 +43,6 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
     let state = ui.global::<AppState>();
     let context_target = Rc::new(Cell::new(None::<ContextTarget>));
-    let context_entry_id = Rc::new(Cell::new(None::<i32>));
 
     // Setup reload controls, we don't need to keep a variable around
     ReloadController::new(ui.as_weak(), entry_model.clone());
@@ -88,12 +87,12 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.on_entry_context_opened({
         let lens_model = entry_model.clone();
         let lens = lens.clone();
-        let context_entry_id = context_entry_id.clone();
+        let target = context_target.clone();
         move |row| {
             if row >= 0 {
                 lens_model.select_for_context(row as usize);
                 let id = lens.borrow().get_dir_entry(row as usize).map(|e| e.id);
-                context_entry_id.set(id);
+                target.set(id.map(ContextTarget::Entry));
             }
         }
     });
@@ -101,18 +100,32 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.on_context_command({
         let ui_handle = ui.as_weak();
         let lens = lens.clone();
-        let context_entry_id = context_entry_id.clone();
+        let target = context_target.clone();
         move |command| {
             println!("Got command: '{command}'");
-            if command == "Rename" {
-                let Some(entry_id) = context_entry_id.get() else {
-                    return;
-                };
-                if let Some(entry) = lens.borrow().get_dir_entry_by_id(entry_id) {
-                    if let Some(ui) = ui_handle.upgrade() {
-                        ui.invoke_open_rename_dialog(entry.name.as_str().into());
+            if command != "Rename" {
+                return;
+            }
+
+            let Some(target) = target.get() else {
+                return;
+            };
+
+            let name = {
+                let lens = lens.borrow();
+                match target {
+                    ContextTarget::Entry(id) => {
+                        lens.get_dir_entry_by_id(id).map(|e| e.name.clone())
                     }
+                    ContextTarget::File(id) => lens
+                        .file_id_to_ix(id)
+                        .and_then(|ix| lens.get_file_entry(ix))
+                        .map(|e| e.name.clone()),
                 }
+            };
+
+            if let (Some(name), Some(ui)) = (name, ui_handle.upgrade()) {
+                ui.invoke_open_rename_dialog(name.as_str().into());
             }
         }
     });
