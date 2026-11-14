@@ -1,7 +1,12 @@
 use std::rc::Rc;
 
+use serious_organizer_lib::lens::Lens;
+
+use crate::MenuEntry;
+use crate::controllers::context::{ContextController, menu_entry};
+use crate::controllers::table::open_path;
 use crate::{
-    controllers::{context::ContextTarget, table::TableKind},
+    controllers::{context::ContextActions, table::TableKind},
     entry_model_list::EntryModelList,
 };
 
@@ -43,10 +48,6 @@ impl TableKind for EntryKind {
         lens.order_by(column, order);
     }
 
-    fn context_target(&self, id: i32) -> ContextTarget {
-        ContextTarget::Entry(id)
-    }
-
     fn current(&self, s: &crate::AppState) -> i32 {
         s.get_current_entry()
     }
@@ -62,5 +63,45 @@ impl TableKind for EntryKind {
     fn set_sort_state(&self, s: &crate::AppState, column: i32, ascending: bool) {
         s.set_entry_sort_column(column);
         s.set_entry_sort_ascending(ascending);
+    }
+}
+
+impl ContextActions for EntryKind {
+    fn menu(&self) -> Vec<MenuEntry> {
+        vec![
+            menu_entry("open", "Open"),
+            menu_entry("rename", "Rename"),
+            menu_entry("move-to-dir", "Move to dir"),
+        ]
+    }
+
+    fn run(&self, ctx: &ContextController, command: &str, id: i32) {
+        match command {
+            "open" => {
+                let path = ctx
+                    .lens()
+                    .borrow()
+                    .get_dir_entry_by_id(id)
+                    .map(|e| e.path.clone());
+                if let Some(path) = path {
+                    open_path(&path);
+                }
+            }
+            "rename" => ctx.start_rename(),
+            _ => eprintln!("Unknown command: {command}"),
+        }
+    }
+
+    fn name(&self, lens: &serious_organizer_lib::lens::Lens, id: i32) -> Option<String> {
+        lens.get_dir_entry_by_id(id).map(|e| e.name.clone())
+    }
+
+    fn rename(&self, lens: &mut Lens, id: i32, new_name: &str) -> Result<(), String> {
+        let entry = lens
+            .get_dir_entry_by_id(id)
+            .cloned()
+            .ok_or("entry not found")?;
+        lens.rename_entry(entry, new_name)
+            .map_err(|e| format!("{e:?}"))
     }
 }

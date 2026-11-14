@@ -59,6 +59,7 @@ export component AppWindow inherits Window {
     context-menu := ContextMenu {
         x: root.menu-x;
         y: root.menu-y;
+        entries <=>  AppState.menu-entries;
         context-command(command) => {
             root.context-command(command);
         }

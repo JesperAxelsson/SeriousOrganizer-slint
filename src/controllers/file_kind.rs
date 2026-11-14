@@ -1,7 +1,15 @@
 use std::rc::Rc;
 
+use serious_organizer_lib::lens::Lens;
+
+use crate::MenuEntry;
+use crate::controllers::context::menu_entry;
+use crate::controllers::table::open_path;
 use crate::{
-    controllers::{context::ContextTarget, table::TableKind},
+    controllers::{
+        context::{ContextActions, ContextController},
+        table::TableKind,
+    },
     file_model_list::FileModelList,
 };
 
@@ -43,10 +51,6 @@ impl TableKind for FileKind {
         lens.order_files_by(column, order);
     }
 
-    fn context_target(&self, id: i32) -> ContextTarget {
-        ContextTarget::File(id)
-    }
-
     fn current(&self, s: &crate::AppState) -> i32 {
         s.get_current_file()
     }
@@ -62,5 +66,41 @@ impl TableKind for FileKind {
     fn set_sort_state(&self, s: &crate::AppState, column: i32, ascending: bool) {
         s.set_file_sort_column(column);
         s.set_file_sort_ascending(ascending);
+    }
+}
+
+impl ContextActions for FileKind {
+    fn menu(&self) -> Vec<MenuEntry> {
+        vec![
+            menu_entry("open", "Open"),
+            // menu_entry("rename", "Rename"),
+        ]
+    }
+
+    fn run(&self, ctx: &ContextController, command: &str, id: i32) {
+        match command {
+            "open" => {
+                let path = {
+                    let lens = ctx.lens().borrow();
+                    lens.file_id_to_ix(id)
+                        .and_then(|ix| lens.get_file_entry(ix))
+                        .map(|f| f.path.clone())
+                };
+                if let Some(path) = path {
+                    open_path(&path);
+                }
+            }
+            _ => eprintln!("Unknown file command: {command}"),
+        }
+    }
+
+    fn name(&self, lens: &serious_organizer_lib::lens::Lens, id: i32) -> Option<String> {
+        lens.file_id_to_ix(id)
+            .and_then(|ix| lens.get_file_entry(ix))
+            .map(|f| f.name.clone())
+    }
+
+    fn rename(&self, _lens: &mut Lens, _id: i32, _new_name: &str) -> Result<(), String> {
+        Err("renaming files is not implemented yet.".into())
     }
 }

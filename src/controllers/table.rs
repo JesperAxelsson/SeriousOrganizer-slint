@@ -1,10 +1,10 @@
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use serious_organizer_lib::lens::{Lens, SortColumn, SortOrder};
 use slint::{ComponentHandle, Weak};
 
-use crate::controllers::context::ContextTarget;
+use crate::controllers::context::{ContextActions, ContextController};
 use crate::{AppState, AppWindow};
 
 pub trait TableKind {
@@ -17,7 +17,6 @@ pub trait TableKind {
     fn path_at(&self, lens: &Lens, row: usize) -> Option<String>;
     fn row_of(&self, lens: &Lens, id: i32) -> Option<usize>;
     fn sort(&self, lens: &mut Lens, column: SortColumn, order: SortOrder);
-    fn context_target(&self, id: i32) -> ContextTarget;
     // ui state
     fn current(&self, s: &AppState) -> i32;
     fn set_current(&self, s: &AppState, ix: i32);
@@ -25,19 +24,19 @@ pub trait TableKind {
     fn set_sort_state(&self, s: &AppState, column: i32, ascending: bool);
 }
 
-pub struct TableController<K: TableKind> {
+pub struct TableController<K: TableKind + 'static> {
     ui: Weak<AppWindow>,
     lens: Rc<RefCell<Lens>>,
-    context: Rc<Cell<Option<ContextTarget>>>,
-    pub kind: K,
+    context: Rc<ContextController>,
+    pub kind: Rc<K>,
 }
 
-impl<K: TableKind> TableController<K> {
+impl<K: TableKind + ContextActions + 'static> TableController<K> {
     pub fn new(
         ui: &AppWindow,
         lens: Rc<RefCell<Lens>>,
-        context: Rc<Cell<Option<ContextTarget>>>,
-        kind: K,
+        context: Rc<ContextController>,
+        kind: Rc<K>,
     ) -> Self {
         TableController {
             ui: ui.as_weak(),
@@ -68,8 +67,9 @@ impl<K: TableKind> TableController<K> {
             return;
         }
         self.kind.select_for_context(row as usize);
-        let id = self.kind.id_at(&self.lens.borrow(), row as usize);
-        self.context.set(id.map(|id| self.kind.context_target(id)));
+        if let Some(id) = self.kind.id_at(&self.lens.borrow(), row as usize) {
+            self.context.open(self.kind.clone(), id);
+        }
     }
 
     pub fn header_clicked(&self, column: i32) {
@@ -112,7 +112,7 @@ impl<K: TableKind> TableController<K> {
     }
 }
 
-fn open_path(path: &str) {
+pub fn open_path(path: &str) {
     if let Err(err) = open::that_detached(path) {
         eprintln!("Failed to open '{path}' {err}");
     }

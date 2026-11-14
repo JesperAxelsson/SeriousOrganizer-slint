@@ -1,11 +1,11 @@
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use slint::{ComponentHandle, SharedString, Weak};
 
 use serious_organizer_lib::lens::Lens;
 
-use crate::controllers::context::ContextTarget;
+use crate::controllers::context::ContextController;
 use crate::controllers::entry_kind::EntryKind;
 use crate::controllers::file_kind::FileKind;
 use crate::controllers::table::{TableController, TableKind};
@@ -31,14 +31,22 @@ pub struct App {
     pub entry_table: TableController<EntryKind>,
     pub file_table: TableController<FileKind>,
 
-    context_target: Rc<Cell<Option<ContextTarget>>>,
+    context: Rc<ContextController>,
 }
 
 impl App {
     pub fn new(ui: &AppWindow, lens: Rc<RefCell<Lens>>) -> Rc<Self> {
         let entry_model = Rc::new(EntryModelList::new(lens.clone()));
         let file_model = Rc::new(FileModelList::new(lens.clone()));
-        let target = Rc::new(Cell::new(None::<ContextTarget>));
+
+        let on_changed = {
+            let (e, f) = (entry_model.clone(), file_model.clone());
+            move || {
+                e.update();
+                f.update();
+            }
+        };
+        let context = Rc::new(ContextController::new(ui, lens.clone(), on_changed));
 
         Rc::new(App {
             ui: ui.as_weak(),
@@ -46,20 +54,20 @@ impl App {
             entry_table: TableController::new(
                 ui,
                 lens.clone(),
-                target.clone(),
-                EntryKind {
+                context.clone(),
+                Rc::new(EntryKind {
                     model: entry_model.clone(),
-                },
+                }),
             ),
             file_table: TableController::new(
                 ui,
                 lens.clone(),
-                target.clone(),
-                FileKind {
+                context.clone(),
+                Rc::new(FileKind {
                     model: file_model.clone(),
-                },
+                }),
             ),
-            context_target: target,
+            context: context,
         })
     }
 
@@ -87,66 +95,8 @@ impl App {
         ui.on_file_context_opened(handler!(self.file_table.context_opened(row)));
 
         // Shared?
-        ui.on_context_command(handler!(self.on_context_command(command)));
-        ui.on_rename_confirmed(handler!(self.on_rename_confirmed(new_name)));
-    }
-
-    /// Handles both file and entry context menu
-    fn on_context_command(&self, command: SharedString) {
-        println!("Got command: '{command}'");
-        if command != "Rename" {
-            return;
-        }
-
-        let Some(context_target) = self.context_target.get() else {
-            return;
-        };
-
-        let name = {
-            let lens = self.lens.borrow();
-            match context_target {
-                ContextTarget::Entry(id) => lens.get_dir_entry_by_id(id).map(|e| e.name.clone()),
-                ContextTarget::File(id) => lens
-                    .file_id_to_ix(id)
-                    .and_then(|ix| lens.get_file_entry(ix))
-                    .map(|e| e.name.clone()),
-            }
-        };
-
-        if let (Some(name), Some(ui)) = (name, self.ui.upgrade()) {
-            ui.invoke_open_rename_dialog(name.as_str().into());
-        }
-    }
-
-    fn on_rename_confirmed(&self, new_name: SharedString) {
-        let Some(target) = self.context_target.get() else {
-            return;
-        };
-
-        println!("Rename confirmed {:?}", target);
-
-        match target {
-            ContextTarget::Entry(id) => {
-                {
-                    let mut lens = self.lens.borrow_mut();
-                    let Some(entry) = lens.get_dir_entry_by_id(id).cloned() else {
-                        return;
-                    };
-
-                    println!("Rename from {} to {}", entry.name, &new_name);
-                    if let Err(err) = lens.rename_entry(entry, &new_name) {
-                        eprintln!("Error while renaming file: {:?}", err);
-                        println!("Show error dialog...");
-                    }
-                }
-
-                self.entry_table.kind.refresh();
-                self.file_table.kind.refresh();
-            }
-            ContextTarget::File(id) => {
-                println!("Rename file is not implemented yet. id: {}", id);
-            }
-        }
+        ui.on_context_command(handler!(self.context.command(command)));
+        ui.on_rename_confirmed(handler!(self.context.rename_confirmed(new_name)));
     }
 
     // ** Search handler ***

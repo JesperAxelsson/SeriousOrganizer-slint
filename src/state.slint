@@ -1,4 +1,4 @@
-import { TableRow } from "types.slint";
+import { TableRow, MenuEntry } from "types.slint";
 
 export global AppState {
     // *** Entry ***
@@ -7,6 +7,8 @@ export global AppState {
     in-out property <int> current-entry: -1;
     in-out property <int> entry-sort-column: -1;
     in-out property <bool> entry-sort-ascending: true;
+
+    in-out property <[MenuEntry]> menu-entries: [];
 
     callback entry-changed(int);
     callback entry-clicked(int, bool, bool);
