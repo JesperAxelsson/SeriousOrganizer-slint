@@ -39,14 +39,14 @@ fn main() -> Result<(), slint::PlatformError> {
     app.wire(&ui);
 
     // Setup reload controls, we don't need to keep a variable around
-    ReloadController::new(ui.as_weak(), app.entry_model.clone());
+    ReloadController::new(ui.as_weak(), app.entry_table.kind.model.clone());
     reload_locations(&ui, &lens.borrow());
 
     // Setup Entry table
-    state.set_items(ModelRc::new(app.entry_model.clone()));
+    state.set_items(ModelRc::new(app.entry_table.kind.model.clone()));
 
     // Setup File table
-    state.set_file_items(ModelRc::new(app.file_model.clone()));
+    state.set_file_items(ModelRc::new(app.file_table.kind.model.clone()));
 
     // *** Locations ***
     ui.on_add_location({

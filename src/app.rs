@@ -8,7 +8,7 @@ use serious_organizer_lib::lens::Lens;
 use crate::controllers::context::ContextTarget;
 use crate::controllers::entry_kind::EntryKind;
 use crate::controllers::file_kind::FileKind;
-use crate::controllers::table::TableController;
+use crate::controllers::table::{TableController, TableKind};
 use crate::entry_model_list::EntryModelList;
 use crate::file_model_list::FileModelList;
 use crate::{AppState, AppWindow};
@@ -28,11 +28,8 @@ pub struct App {
     ui: Weak<AppWindow>,
     lens: Rc<RefCell<Lens>>,
 
-    pub entry_model: Rc<EntryModelList>,
-    pub file_model: Rc<FileModelList>,
-
-    entry_table: TableController<EntryKind>,
-    file_table: TableController<FileKind>,
+    pub entry_table: TableController<EntryKind>,
+    pub file_table: TableController<FileKind>,
 
     context_target: Rc<Cell<Option<ContextTarget>>>,
 }
@@ -62,9 +59,6 @@ impl App {
                     model: file_model.clone(),
                 },
             ),
-            entry_model: entry_model,
-            file_model: file_model,
-
             context_target: target,
         })
     }
@@ -76,7 +70,8 @@ impl App {
         state.on_search_text_changed(handler!(self.on_search_text_changed(text)));
 
         // Entry
-        state.on_entry_changed(handler!(self.file_model.set_entry_ix(row)));
+        let file_model = self.file_table.kind.model.clone();
+        state.on_entry_changed(handler!(file_model.set_entry_ix(row)));
         state.on_entry_clicked(handler!(self.entry_table.clicked(row, ctrl, shift)));
         state.on_entry_activated(handler!(self.entry_table.activated(row)));
         state.on_entry_header_clicked(handler!(self.entry_table.header_clicked(column)));
@@ -145,8 +140,8 @@ impl App {
                     }
                 }
 
-                self.entry_model.update();
-                self.file_model.update();
+                self.entry_table.kind.refresh();
+                self.file_table.kind.refresh();
             }
             ContextTarget::File(id) => {
                 println!("Rename file is not implemented yet. id: {}", id);
@@ -163,8 +158,8 @@ impl App {
 
         self.entry_table.keep_current(&state, || {
             self.lens.borrow_mut().update_search_text(&text);
-            self.entry_model.update();
-            self.file_model.update();
+            self.entry_table.kind.refresh();
+            self.file_table.kind.refresh();
         });
     }
 }
