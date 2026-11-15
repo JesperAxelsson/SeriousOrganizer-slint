@@ -7,6 +7,14 @@ export struct LabelData {
     state: FilterState,
 }
 
+export enum AssignState { unassigned, partial, assigned }
+
+export struct AssignRow {
+    id: int,
+    name: string,
+    state: AssignState,
+}
+
 export struct TableRow {
     id: int,
     name: string,

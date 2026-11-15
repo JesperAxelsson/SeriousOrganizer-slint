@@ -1,4 +1,4 @@
-import { TableRow, MenuEntry, LabelData } from "types.slint";
+import { TableRow, MenuEntry, LabelData, AssignRow } from "types.slint";
 
 export global AppState {
     // *** Entry ***
@@ -45,4 +45,7 @@ export global AppState {
     callback label-add-requested(string);
     callback label-filters-reset();
     callback label-filters-exclude-all();
+
+    in-out property <[AssignRow]> assign-rows: [];
+    callback assign-toggled(int); // label id
 }

@@ -1,0 +1,104 @@
+import { Button, ListView, Palette } from "std-widgets.slint";
+import { AssignRow, AssignState } from "../types.slint";
+
+export component LabelAssignDialog inherits Rectangle {
+    in property <[AssignRow]> rows;
+    in-out property <string> subtitle;
+
+    callback toggled(int); // Label id
+    background: #00000066;
+
+    // Swallow clicks
+TouchArea { }
+
+    key-scope := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape || event.text == Key.Return) {
+                root.visible = false;
+                return accept;
+            }
+            return reject;
+        }
+    }
+
+    public function show-dialog(subtitle: string) {
+        root.subtitle = subtitle;
+        root.visible = true;
+        key-scope.focus();
+    }
+
+    Rectangle {
+        width: 320px;
+        height: 360px;
+        background: Palette.background;
+        border-color: #cccccc;
+        border-width: 1px;
+        border-radius: 6px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 8px;
+
+            Text {
+                text: "Labels";
+                font-size: 16px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: root.subtitle;
+                color: #888888;
+            }
+
+            ListView {
+                for row in root.rows: Rectangle {
+                    height: 28px;
+                    background: touch.has-hover ? Palette.alternate-background : transparent;
+
+                    // Check box 
+                    Rectangle {
+                        x: 6px;
+                        y: 5px;
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 3px;
+                        border-width: 1px;
+                        border-color: Palette.foreground;
+                        background: row.state == AssignState.assigned ? #2e7d32 : transparent;
+
+                        Text {
+                            text: row.state == AssignState.assigned ? "✓"
+                                : (row.state == AssignState.partial ? "–" : "");
+                            color: row.state == AssignState.assigned ? white : Palette.foreground;
+                            font-size: 13px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Text {
+                        x: 34px;
+                        width: parent.width - 42px;
+                        height: parent.height;
+                        text: row.name;
+                        overflow: elide;
+                        vertical-alignment: center;
+                    }
+
+                    touch := TouchArea {
+                        clicked => { root.toggled(row.id); }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                alignment: end;
+                Button {
+                    text: "Done";
+                    primary: true;
+                    clicked => { root.visible = false; }
+                }
+            }
+        }
+    }
+}

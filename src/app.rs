@@ -9,6 +9,7 @@ use crate::controllers::confirm::ConfirmController;
 use crate::controllers::context::{ContextController, Env};
 use crate::controllers::entry_kind::EntryKind;
 use crate::controllers::file_kind::FileKind;
+use crate::controllers::label_assign::LabelAssignController;
 use crate::controllers::locations::LocationKind;
 use crate::controllers::rename::RenameController;
 use crate::controllers::table::{TableController, TableKind};
@@ -37,6 +38,7 @@ pub struct App {
     pub location: Rc<LocationKind>,
     pub labels: Rc<LabelModelList>,
 
+    label_assign: Rc<LabelAssignController>,
     rename: Rc<RenameController>,
     context: Rc<ContextController>,
     confirm: Rc<ConfirmController>,
@@ -49,6 +51,7 @@ impl App {
 
         let rename = Rc::new(RenameController::new(ui));
         let confirm = Rc::new(ConfirmController::new(ui));
+        let label_assign = Rc::new(LabelAssignController::new(&ui, lens.clone()));
 
         let env = Env {
             lens: lens.clone(),
@@ -60,6 +63,7 @@ impl App {
                     f.update();
                 }
             }),
+            assign: label_assign.clone(),
             confirm: confirm.clone(),
         };
 
@@ -86,6 +90,7 @@ impl App {
             ),
             location: Rc::new(LocationKind::new(lens.clone())),
             labels: Rc::new(LabelModelList::new(lens.clone())),
+            label_assign: label_assign,
             context: context,
             rename: rename,
             confirm: confirm,
@@ -132,8 +137,9 @@ impl App {
         // Label
         state.on_label_stepped(handler!(self.on_label_stepped(row, toward_include)));
         state.on_label_add_requested(handler!(self.on_label_add(name)));
-        state.on_label_filters_reset(handler!(self.labels.clear_filters()));
-        state.on_label_filters_exclude_all(handler!(self.labels.exclude_all()));
+        state.on_label_filters_reset(handler!(self.on_label_filters_reset()));
+        state.on_label_filters_exclude_all(handler!(self.on_label_filters_exclude_all()));
+        state.on_assign_toggled(handler!(self.on_assign_toggled(label_id)));
     }
 
     // ** Search handler ***
@@ -155,17 +161,20 @@ impl App {
             return;
         }
 
-        let Some(ui) = self.ui.upgrade() else {
-            return;
-        };
+        self.apply_filter_change(|| self.labels.step(row as usize, toward_include));
+    }
 
-        let state = ui.global::<AppState>();
+    fn on_label_filters_reset(&self) {
+        self.apply_filter_change(|| {
+            self.labels.clear_filters();
+            true
+        });
+    }
 
-        self.entry_table.keep_current(&state, || {
-            if self.labels.step(row as usize, toward_include) {
-                self.entry_table.kind.refresh();
-                self.file_table.kind.refresh();
-            }
+    fn on_label_filters_exclude_all(&self) {
+        self.apply_filter_change(|| {
+            self.labels.exclude_all();
+            true
         });
     }
 
@@ -176,5 +185,27 @@ impl App {
                 &format!("A label named '{name}' already exists."),
             );
         }
+    }
+
+    fn apply_filter_change(&self, change: impl FnOnce() -> bool) {
+        let Some(ui) = self.ui.upgrade() else {
+            return;
+        };
+
+        let state = ui.global::<AppState>();
+
+        self.entry_table.keep_current(&state, || {
+            if change() {
+                self.entry_table.kind.refresh();
+                self.file_table.kind.refresh();
+            }
+        });
+    }
+
+    fn on_assign_toggled(&self, label_id: i32) {
+        self.apply_filter_change(|| {
+            self.label_assign.toggle(label_id);
+            true
+        });
     }
 }

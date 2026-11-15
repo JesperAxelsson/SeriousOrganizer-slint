@@ -26,6 +26,15 @@ export component LabelFilterList inherits Rectangle {
                 height: root.row-height;
                 background: touch.has-hover ? Palette.alternate-background : transparent;
 
+                Text {
+                    x: 32px;
+                    width: parent.width - 40px;
+                    height: parent.height;
+                    text: label.name;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+
                 // State badge: I / U / E
                 Rectangle {
                     x: 6px;
@@ -43,15 +52,6 @@ export component LabelFilterList inherits Rectangle {
                         horizontal-alignment: center;
                         vertical-alignment: center;
                     }
-                }
-
-                Text {
-                    x: 32px;
-                    width: parent.width - 40px;
-                    height: parent.height;
-                    text: label.name;
-                    overflow: elide;
-                    vertical-alignment: center;
                 }
 
                 touch := TouchArea {

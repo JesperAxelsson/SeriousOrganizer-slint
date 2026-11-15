@@ -7,17 +7,32 @@ import {
     StandardTableView,
     StandardListView,
 } from "std-widgets.slint";
-    import { AppState } from "state.slint";
+import { AppState } from "state.slint";
 import { ContextMenu } from "components/context-menu.slint";
 import { TabButton } from "components/tab-button.slint";
-import { TableRow, LabelData, FilterState, MenuEntry } from "types.slint";
+import {
+    TableRow,
+    LabelData,
+    FilterState,
+    MenuEntry,
+    AssignState,
+    AssignRow,
+} from "types.slint";
 import { LibraryView } from "views/library-view.slint";
 import { LocationsView } from "views/locations-view.slint";
 import { RenameDialog } from "components/rename-dialog.slint";
 import { ConfirmDialog } from "components/confirm-dialog.slint";
+import { LabelAssignDialog } from "components/label-assign-dialog.slint";
 
 // Re-exports
-export { TableRow, LabelData, FilterState, MenuEntry } from "types.slint";
+export {
+    TableRow,
+    LabelData,
+    FilterState,
+    MenuEntry,
+    AssignState,
+    AssignRow,
+} from "types.slint";
 export { AppState } from "state.slint";
 
 export component AppWindow inherits Window {
@@ -34,7 +49,7 @@ export component AppWindow inherits Window {
     callback entry-context-opened(int);
     callback file-context-opened(int);
     callback location-context-opened(int);
-     
+
     // Locations
     callback add_location();
 
@@ -49,6 +64,10 @@ export component AppWindow inherits Window {
 
     public function open-rename-dialog(current-name: string) {
         rename-dialog.show-dialog(current-name);
+    }
+
+    public function open-label-assign(subtitle: string) {
+        label-assign-dialog.show-dialog(subtitle)
     }
 
     VerticalBox {
@@ -152,6 +171,14 @@ export component AppWindow inherits Window {
         cancelled => {
             self.visible = false;
         }
+    }
+
+    label-assign-dialog := LabelAssignDialog {
+        visible: false;
+        width: 100%;
+        height: 100%;
+        rows: AppState.assign-rows;
+        toggled(id) => AppState.assign-toggled(id);
     }
 
     context-menu := ContextMenu {

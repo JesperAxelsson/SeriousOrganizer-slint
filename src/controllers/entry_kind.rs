@@ -68,7 +68,7 @@ impl TableKind for EntryKind {
 impl ContextActions for EntryKind {
     fn menu(&self, env: &Env, _id: i32) -> Vec<MenuEntry> {
         let ids = self.model.selected_ids();
-        let mut menu = vec![menu_entry("open", "Open")];
+        let mut menu = vec![menu_entry("open", "Open"), menu_entry("labels", "Labels")];
 
         if ids.len() == 1 {
             menu.push(menu_entry("rename", "Rename"));
@@ -100,6 +100,7 @@ impl ContextActions for EntryKind {
             }
             "rename" => self.rename(&env, id),
             "move-to-dir" => self.move_to_dir(&env),
+            "labels" => env.assign.open(self.model.selected_ids()),
             _ => eprintln!("Unknown entry command: {command}"),
         }
     }
