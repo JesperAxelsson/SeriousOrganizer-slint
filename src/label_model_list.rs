@@ -12,6 +12,8 @@ pub struct LabelModelList {
 
 impl LabelModelList {
     pub fn new(lens: Rc<RefCell<Lens>>) -> Self {
+        lens.borrow_mut().update_label_states();
+
         Self {
             lens,
             notify: ModelNotify::default(),

@@ -139,7 +139,9 @@ impl App {
         state.on_label_add_requested(handler!(self.on_label_add(name)));
         state.on_label_filters_reset(handler!(self.on_label_filters_reset()));
         state.on_label_filters_exclude_all(handler!(self.on_label_filters_exclude_all()));
-        state.on_assign_toggled(handler!(self.on_assign_toggled(label_id)));
+
+        state.on_assign_toggled(handler!(self.label_assign.toggle(label_id)));
+        state.on_assign_applied(handler!(self.on_assign_applied()));
     }
 
     // ** Search handler ***
@@ -187,6 +189,10 @@ impl App {
         }
     }
 
+    fn on_assign_applied(&self) {
+        self.apply_filter_change(|| self.label_assign.apply());
+    }
+
     fn apply_filter_change(&self, change: impl FnOnce() -> bool) {
         let Some(ui) = self.ui.upgrade() else {
             return;
@@ -199,13 +205,6 @@ impl App {
                 self.entry_table.kind.refresh();
                 self.file_table.kind.refresh();
             }
-        });
-    }
-
-    fn on_assign_toggled(&self, label_id: i32) {
-        self.apply_filter_change(|| {
-            self.label_assign.toggle(label_id);
-            true
         });
     }
 }

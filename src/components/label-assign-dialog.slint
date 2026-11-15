@@ -6,6 +6,9 @@ export component LabelAssignDialog inherits Rectangle {
     in-out property <string> subtitle;
 
     callback toggled(int); // Label id
+    callback applied();
+    callback cancelled();
+
     background: #00000066;
 
     // Swallow clicks
@@ -13,8 +16,12 @@ TouchArea { }
 
     key-scope := FocusScope {
         key-pressed(event) => {
-            if (event.text == Key.Escape || event.text == Key.Return) {
-                root.visible = false;
+            if (event.text == Key.Escape) {
+                root.cancelled();
+                return accept;
+            }
+            if (event.text == Key.Return) {
+                root.applied();
                 return accept;
             }
             return reject;
@@ -93,10 +100,16 @@ TouchArea { }
 
             HorizontalLayout {
                 alignment: end;
+                spacing: 16px;
+
                 Button {
-                    text: "Done";
+                    text: "Apply";
                     primary: true;
-                    clicked => { root.visible = false; }
+                    clicked => { root.applied(); }
+                }
+                Button {
+                    text: "Cancel";
+                    clicked => { root.cancelled(); }
                 }
             }
         }

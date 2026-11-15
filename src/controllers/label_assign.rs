@@ -5,10 +5,49 @@ use slint::{ComponentHandle, ModelRc, ToSharedString, VecModel, Weak};
 
 use crate::{AppState, AppWindow, AssignRow, AssignState};
 
+#[derive(Clone, Copy, PartialEq)]
+enum Mark {
+    Unassigned,
+    Partial,
+    Assigned,
+}
+
+impl Mark {
+    // Click cycle. Partial can only be reach by going back to the original.
+    fn next(self, original: Mark) -> Mark {
+        match (original, self) {
+            (Mark::Partial, Mark::Partial) => Mark::Assigned,
+            (Mark::Partial, Mark::Assigned) => Mark::Unassigned,
+            (Mark::Partial, Mark::Unassigned) => Mark::Partial,
+            (Mark::Unassigned, Mark::Unassigned) => Mark::Assigned,
+            (Mark::Unassigned, _) => Mark::Unassigned,
+            (Mark::Assigned, Mark::Assigned) => Mark::Unassigned,
+            (Mark::Assigned, _) => Mark::Assigned,
+        }
+    }
+
+    fn to_state(self) -> AssignState {
+        match self {
+            Mark::Unassigned => AssignState::Unassigned,
+            Mark::Partial => AssignState::Partial,
+            Mark::Assigned => AssignState::Assigned,
+        }
+    }
+}
+
+struct Row {
+    id: i32,
+    name: String,
+    original: Mark,
+    current: Mark,
+}
+
 pub struct LabelAssignController {
     ui: Weak<AppWindow>,
     lens: Rc<RefCell<Lens>>,
+    /// The entries the dialog works on, a snapshot from when it was opened
     ids: RefCell<Vec<i32>>,
+    rows: RefCell<Vec<Row>>,
 }
 
 impl LabelAssignController {
@@ -17,6 +56,7 @@ impl LabelAssignController {
             ui: ui.as_weak(),
             lens: lens,
             ids: RefCell::new(Vec::new()),
+            rows: RefCell::new(Vec::new()),
         }
     }
 
@@ -31,36 +71,8 @@ impl LabelAssignController {
             format!("{} entries selected", ids.len())
         };
 
-        *self.ids.borrow_mut() = ids;
-        self.refresh_rows();
-
-        if let Some(ui) = self.ui.upgrade() {
-            ui.invoke_open_label_assign(subitle.into());
-        }
-    }
-
-    pub fn toggle(&self, label_id: i32) {
-        let ids = self.ids.borrow().clone();
-        {
-            let mut lens = self.lens.borrow_mut();
-            let all = ids.iter().all(|e| lens.source.has_label(*e, label_id));
-            let entries: Vec<u32> = ids.iter().map(|e| *e as u32).collect();
-
-            if all {
-                lens.remove_entry_labels(entries, vec![label_id as u32]);
-            } else {
-                lens.add_entry_labels(entries, vec![label_id as u32]);
-            }
-        }
-
-        self.refresh_rows();
-    }
-
-    fn refresh_rows(&self) {
-        let rows: Vec<AssignRow> = {
+        let rows: Vec<Row> = {
             let lens = self.lens.borrow();
-            let ids = self.ids.borrow();
-
             lens.get_labels()
                 .iter()
                 .map(|label| {
@@ -68,21 +80,91 @@ impl LabelAssignController {
                         .iter()
                         .filter(|e| lens.source.has_label(**e, label.id))
                         .count();
-                    let state = if have == 0 {
-                        AssignState::Unassigned
+                    let mark = if have == 0 {
+                        Mark::Unassigned
                     } else if have == ids.len() {
-                        AssignState::Assigned
+                        Mark::Assigned
                     } else {
-                        AssignState::Partial
+                        Mark::Partial
                     };
-                    AssignRow {
+
+                    Row {
                         id: label.id,
-                        name: label.name.to_shared_string(),
-                        state,
+                        name: label.name.clone(),
+                        original: mark,
+                        current: mark,
                     }
                 })
                 .collect()
         };
+
+        *self.ids.borrow_mut() = ids;
+        *self.rows.borrow_mut() = rows;
+        self.publish();
+
+        if let Some(ui) = self.ui.upgrade() {
+            ui.invoke_open_label_assign(subitle.into());
+        }
+    }
+
+    /// Stage label change
+    pub fn toggle(&self, label_id: i32) {
+        {
+            let mut rows = self.rows.borrow_mut();
+            if let Some(row) = rows.iter_mut().find(|r| r.id == label_id) {
+                row.current = row.current.next(row.original);
+            }
+        }
+
+        self.publish();
+    }
+
+    /// Writes all staged changes in one batch. Returns true if anything changes.
+    pub fn apply(&self) -> bool {
+        let entries: Vec<u32> = self.ids.borrow().iter().map(|e| *e as u32).collect();
+
+        let (add, remove): (Vec<u32>, Vec<u32>) = {
+            let rows = self.rows.borrow();
+            let add = rows
+                .iter()
+                .filter(|r| r.current == Mark::Assigned && r.original != Mark::Assigned)
+                .map(|r| r.id as u32)
+                .collect();
+            let remove = rows
+                .iter()
+                .filter(|r| r.current == Mark::Unassigned && r.original != Mark::Unassigned)
+                .map(|r| r.id as u32)
+                .collect();
+
+            (add, remove)
+        };
+
+        if add.is_empty() && remove.is_empty() {
+            return false;
+        }
+
+        let mut lens = self.lens.borrow_mut();
+        if !add.is_empty() {
+            lens.add_entry_labels(entries.clone(), add);
+        } else {
+            lens.remove_entry_labels(entries.clone(), remove);
+        }
+
+        true
+    }
+
+    fn publish(&self) {
+        let rows: Vec<AssignRow> = self
+            .rows
+            .borrow()
+            .iter()
+            .map(|r| AssignRow {
+                id: r.id,
+                name: r.name.to_shared_string(),
+                state: r.current.to_state(),
+                changed: r.current != r.original,
+            })
+            .collect();
 
         if let Some(ui) = self.ui.upgrade() {
             ui.global::<AppState>()
