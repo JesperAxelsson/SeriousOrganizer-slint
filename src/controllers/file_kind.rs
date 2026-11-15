@@ -65,7 +65,7 @@ impl TableKind for FileKind {
 }
 
 impl ContextActions for FileKind {
-    fn menu(&self) -> Vec<MenuEntry> {
+    fn menu(&self, _env: &Env, _id: i32) -> Vec<MenuEntry> {
         vec![
             menu_entry("open", "Open"),
             // menu_entry("rename", "Rename"),

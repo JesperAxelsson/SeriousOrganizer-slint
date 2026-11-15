@@ -35,4 +35,8 @@ export global AppState {
     callback reload();
     callback reload-done();
     callback search-text-changed(string);
+
+    // Location
+    in-out property <[TableRow]> locations: [];
+
 }

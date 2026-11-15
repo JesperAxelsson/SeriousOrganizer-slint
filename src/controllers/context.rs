@@ -16,8 +16,8 @@ pub struct Env {
 
 /// What a table can do to the row that was right-clicked
 pub trait ContextActions {
-    fn menu(&self) -> Vec<MenuEntry>;
-    fn run(&self, ctx: &Env, command: &str, id: i32);
+    fn menu(&self, env: &Env, id: i32) -> Vec<MenuEntry>;
+    fn run(&self, env: &Env, command: &str, id: i32);
 }
 
 pub struct ContextTarget {
@@ -43,7 +43,7 @@ impl ContextController {
     pub fn open(&self, owner: Rc<dyn ContextActions>, id: i32) {
         if let Some(ui) = self.ui.upgrade() {
             ui.global::<AppState>()
-                .set_menu_entries(ModelRc::new(VecModel::from(owner.menu())));
+                .set_menu_entries(ModelRc::new(VecModel::from(owner.menu(&self.env, id))));
         }
 
         *self.target.borrow_mut() = Some(ContextTarget { owner, id })

@@ -9,6 +9,7 @@ use crate::controllers::confirm::ConfirmController;
 use crate::controllers::context::{ContextController, Env};
 use crate::controllers::entry_kind::EntryKind;
 use crate::controllers::file_kind::FileKind;
+use crate::controllers::locations::LocationKind;
 use crate::controllers::rename::RenameController;
 use crate::controllers::table::{TableController, TableKind};
 use crate::entry_model_list::EntryModelList;
@@ -32,6 +33,7 @@ pub struct App {
 
     pub entry_table: TableController<EntryKind>,
     pub file_table: TableController<FileKind>,
+    pub location: Rc<LocationKind>,
 
     rename: Rc<RenameController>,
     context: Rc<ContextController>,
@@ -80,6 +82,7 @@ impl App {
                     model: file_model.clone(),
                 }),
             ),
+            location: Rc::new(LocationKind::new(lens.clone())),
             context: context,
             rename: rename,
             confirm: confirm,
@@ -108,6 +111,13 @@ impl App {
         state.on_file_header_clicked(handler!(self.file_table.header_clicked(column)));
 
         ui.on_file_context_opened(handler!(self.file_table.context_opened(row)));
+
+        // Locations
+        ui.on_add_location(handler!(self.location.add()));
+        ui.on_location_context_opened({
+            let app = self.clone();
+            move |row| app.location.context_opened(&app.context, row)
+        });
 
         // Context Menu
         ui.on_context_command(handler!(self.context.command(command)));

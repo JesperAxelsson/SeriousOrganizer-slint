@@ -1,10 +1,15 @@
-import { Button, VerticalBox, HorizontalBox, ListView } from "std-widgets.slint";
-import { LocationData } from "../types.slint";
+import {
+    Button,
+    VerticalBox,
+    HorizontalBox,
+    ListView,
+} from "std-widgets.slint";
+import { DataTable } from "../components/data-table.slint";
+import { AppState } from "../state.slint";
 
 export component LocationsView inherits VerticalBox {
-    in property <[LocationData]> locations;
     callback add-location();
-    callback remove-location(int);
+    callback context-requested(int, length, length);
 
     padding: 16px;
     spacing: 16px;
@@ -29,18 +34,16 @@ export component LocationsView inherits VerticalBox {
         }
     }
 
-    ListView {
-        for loc in root.locations: HorizontalBox {
-            Text { text: loc.name; }
-            Text { text: loc.path; }
-            Text { text: loc.size_str; }
+    DataTable {
+        vertical-stretch: 1;
 
-            Button {
-                text: "Remove";
-                clicked => {
-                    root.remove-location(loc.id);
-                }
-            }
+        rows: AppState.locations;
+
+        selectable: false;
+        sortable: false;
+
+        context-requested(row, x, y) => {
+            root.context-requested(row, x, y);
         }
     }
 }

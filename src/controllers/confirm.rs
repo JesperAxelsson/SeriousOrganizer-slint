@@ -1,4 +1,4 @@
-use slint::{ComponentHandle, Weak, platform::Key::SysReq};
+use slint::{ComponentHandle, Weak};
 
 use crate::{AppWindow, controllers::pending::Pending};
 

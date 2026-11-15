@@ -11,7 +11,6 @@ slint::include_modules!();
 use serious_organizer_lib::lens::Lens;
 
 use crate::app::App;
-use crate::location_model_list::reload_locations;
 use crate::reload_controller::ReloadController;
 
 mod app;
@@ -40,7 +39,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Setup reload controls, we don't need to keep a variable around
     ReloadController::new(ui.as_weak(), app.entry_table.kind.model.clone());
-    reload_locations(&ui, &lens.borrow());
+    // reload_locations(&ui, &lens.borrow());
 
     // Setup Entry table
     state.set_items(ModelRc::new(app.entry_table.kind.model.clone()));
@@ -48,41 +47,8 @@ fn main() -> Result<(), slint::PlatformError> {
     // Setup File table
     state.set_file_items(ModelRc::new(app.file_table.kind.model.clone()));
 
-    // *** Locations ***
-    ui.on_add_location({
-        // let state_handle = state.as_weak();
-        let ui_handle = ui.as_weak();
-        let lens = lens.clone();
-
-        move || {
-            if let Some(folder_path) = rfd::FileDialog::new().pick_folder() {
-                let path_str = folder_path.to_string_lossy().to_string();
-                let name = folder_path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-
-                lens.borrow_mut().add_location(&name, &path_str);
-
-                if let Some(ui) = ui_handle.upgrade() {
-                    reload_locations(&ui, &lens.borrow());
-                }
-            }
-        }
-    });
-
-    ui.on_remove_location({
-        let ui_handle = ui.as_weak();
-        let lens = lens.clone();
-        move |id| {
-            lens.borrow_mut().remove_location_id(id);
-
-            if let Some(ui) = ui_handle.upgrade() {
-                reload_locations(&ui, &lens.borrow());
-            }
-        }
-    });
+    // Setup Location Table
+    state.set_locations(ModelRc::new(app.location.model.clone()));
 
     ui.run()?;
 

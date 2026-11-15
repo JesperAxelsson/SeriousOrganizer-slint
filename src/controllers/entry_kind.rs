@@ -1,3 +1,4 @@
+use std::fs::metadata;
 use std::rc::Rc;
 
 use crate::MenuEntry;
@@ -65,12 +66,24 @@ impl TableKind for EntryKind {
 }
 
 impl ContextActions for EntryKind {
-    fn menu(&self) -> Vec<MenuEntry> {
-        vec![
-            menu_entry("open", "Open"),
-            menu_entry("rename", "Rename"),
-            menu_entry("move-to-dir", "Move to dir"),
-        ]
+    fn menu(&self, env: &Env, _id: i32) -> Vec<MenuEntry> {
+        let ids = self.model.selected_ids();
+        let mut menu = vec![menu_entry("open", "Open")];
+
+        if ids.len() == 1 {
+            menu.push(menu_entry("rename", "Rename"));
+        }
+
+        let lens = env.lens.borrow();
+        let any_file = ids
+            .iter()
+            .filter_map(|id| lens.get_dir_entry_by_id(*id))
+            .any(|e| metadata(&e.path).is_ok_and(|m| m.is_file()));
+        if any_file {
+            menu.push(menu_entry("move-to-dir", "Move to dir"));
+        }
+
+        menu
     }
 
     fn run(&self, env: &Env, command: &str, id: i32) {
@@ -144,7 +157,7 @@ impl EntryKind {
                         };
 
                         // Only plain files are moved
-                        if !std::fs::metadata(&entry.path).map(|m| m.is_file()).is_ok() {
+                        if !std::fs::metadata(&entry.path).is_ok_and(|m| m.is_file()) {
                             continue;
                         };
 
