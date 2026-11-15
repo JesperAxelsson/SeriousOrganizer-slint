@@ -1,4 +1,12 @@
 
+export enum FilterState { unset, include, exclude }
+
+export struct LabelData {
+    id: int,
+    name: string,
+    state: FilterState,
+}
+
 export struct TableRow {
     id: int,
     name: string,

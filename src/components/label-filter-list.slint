@@ -1,0 +1,110 @@
+import { ListView, Palette, Button, LineEdit } from "std-widgets.slint";
+import { LabelData, FilterState } from "../types.slint";
+
+export component LabelFilterList inherits Rectangle {
+    in property <[LabelData]> labels;
+    in property <length> row-height: 26px;
+
+    // row, true = left click (toward Include), false = right click (toward Exclude)
+    callback stepped(int, bool);
+    callback add-label(string);
+    callback reset-filters();
+    callback exclude-all();
+
+    VerticalLayout {
+        Rectangle {
+            height: 28px;
+            background: Palette.alternate-background;
+            Text {
+                x: 8px;
+                text: "Labels";
+            }
+        }
+
+        ListView {
+            for label[i] in root.labels: Rectangle {
+                height: root.row-height;
+                background: touch.has-hover ? Palette.alternate-background : transparent;
+
+                // State badge: I / U / E
+                Rectangle {
+                    x: 6px;
+                    y: (parent.height - 18px) / 2;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 3px;
+                    background: label.state == FilterState.include ? #2e7d32 : (label.state == FilterState.exclude ? #c62828 : #66666680);
+
+                    Text {
+                        text: label.state == FilterState.include ? "I" : (label.state == FilterState.exclude ? "E" : "U");
+                        color: white;
+                        font-size: 11px;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                Text {
+                    x: 32px;
+                    width: parent.width - 40px;
+                    height: parent.height;
+                    text: label.name;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+
+                touch := TouchArea {
+                    pointer-event(event) => {
+                        if (event.kind == PointerEventKind.down) {
+                            if (event.button == PointerEventButton.left) {
+                                root.stepped(i, true);
+                            } else if (event.button == PointerEventButton.right) {
+                                root.stepped(i, false);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            padding: 4px;
+            spacing: 4px;
+            Button {
+                text: "Reset";
+                clicked => {
+                    root.reset-filters();
+                }
+            }
+
+            Button {
+                text: "Exclude all";
+                clicked => {
+                    root.exclude-all();
+                }
+            }
+        }
+
+        HorizontalLayout {
+            padding: 4px;
+            spacing: 4px;
+            new-label := LineEdit {
+                placeholder-text: "New label";
+                accepted(text) => {
+                    root.add-label(text);
+                    self.text = "";
+                }
+            }
+
+            Button {
+                text: "+";
+                width: 32px;
+                clicked => {
+                    root.add-label(new-label.text);
+                    new-label.text = "";
+                }
+            }
+        }
+    }
+}

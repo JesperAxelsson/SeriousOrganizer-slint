@@ -1,4 +1,4 @@
-import { TableRow, MenuEntry } from "types.slint";
+import { TableRow, MenuEntry, LabelData } from "types.slint";
 
 export global AppState {
     // *** Entry ***
@@ -39,4 +39,10 @@ export global AppState {
     // Location
     in-out property <[TableRow]> locations: [];
 
+    // Label
+    in-out property <[LabelData]> labels;
+    callback label-stepped(int, bool);
+    callback label-add-requested(string);
+    callback label-filters-reset();
+    callback label-filters-exclude-all();
 }

@@ -19,6 +19,7 @@ mod controllers;
 mod entry_model_list;
 mod file_model_list;
 mod helper;
+mod label_model_list;
 mod location_model_list;
 mod reload_controller;
 mod selection;
@@ -49,6 +50,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Setup Location Table
     state.set_locations(ModelRc::new(app.location.model.clone()));
+
+    // Setup Label Table
+    state.set_labels(ModelRc::new(app.labels.clone()));
 
     ui.run()?;
 

@@ -8,66 +8,77 @@ import {
 import { TableRow } from "../types.slint";
 import { AppState } from "../state.slint";
 import { DataTable } from "../components/data-table.slint";
+import { LabelFilterList } from "../components/label-filter-list.slint";
 
-export component LibraryView inherits VerticalBox {
-
+export component LibraryView inherits HorizontalBox {
     // Absolute window coordinates of a right click on the entry table
     callback entry-context-requested(int, length, length);
     callback file-context-requested(int, length, length);
 
-    HorizontalBox {
-        LineEdit {
-            placeholder-text: "Search";
+    VerticalBox {
 
-            edited(text) => {
-                AppState.search-text-changed(text);
+        HorizontalBox {
+            LineEdit {
+                placeholder-text: "Search";
+
+                edited(text) => {
+                    AppState.search-text-changed(text);
+                }
+            }
+
+            Button {
+                text: "Reload";
+                clicked => {
+                    AppState.reload();
+                }
             }
         }
 
-        Button {
-            text: "Reload";
-            clicked => {
-                AppState.reload();
+        DataTable {
+            height: 50%;
+            rows: AppState.items;
+            current-row <=> AppState.current-entry;
+            sort-column: AppState.entry-sort-column;
+            sort-ascending: AppState.entry-sort-ascending;
+        // entr
+
+        changed current-row => {
+                AppState.entry-changed(AppState.current-entry);
             }
+
+            header-clicked(col) => AppState.entry-header-clicked(col);
+            row-clicked(row, ctrl, shift) => AppState.entry-clicked(row, ctrl, shift);
+            row-activated(row) => {
+                AppState.current-file = -1;
+                AppState.entry-activated(row);
+            }
+            context-requested(row, x, y) => root.entry-context-requested(row, x,y);
+        }
+
+        DataTable {
+            height: 50%;
+            rows: AppState.file-items;
+            current-row <=> AppState.current-file;
+            sort-column: AppState.file-sort-column;
+            sort-ascending: AppState.file-sort-ascending;
+
+            changed current-row => {
+                AppState.file-changed(AppState.current-file);
+            }
+
+            header-clicked(col) => AppState.file-header-clicked(col);
+            row-clicked(row, ctrl, shift) => AppState.file-clicked(row, ctrl, shift);
+            row-activated(row) => AppState.file-activated(row);
+            context-requested(row, x, y) => root.file-context-requested(row, x,y);
         }
     }
 
-    DataTable {
-        height: 50%;
-        rows: AppState.items;
-        current-row <=> AppState.current-entry;
-        sort-column: AppState.entry-sort-column;
-        sort-ascending: AppState.entry-sort-ascending;
-
-        changed current-row => {
-            AppState.entry-changed(AppState.current-entry);
-        }
-
-        header-clicked(col) => AppState.entry-header-clicked(col);
-        row-clicked(row, ctrl, shift) => AppState.entry-clicked(row, ctrl, shift);
-        row-activated(row) => {
-            AppState.current-file = -1;
-            AppState.entry-activated(row);
-        }
-        context-requested(row, x, y) => root.entry-context-requested(row, x,y);
-        // context-requested(row, x, y) => AppState.entry-context-requested(row, x,y);
-    }
-
-    DataTable {
-        height: 50%;
-        rows: AppState.file-items;
-        current-row <=> AppState.current-file;
-        sort-column: AppState.file-sort-column;
-        sort-ascending: AppState.file-sort-ascending;
-
-        changed current-row => {
-            AppState.file-changed(AppState.current-file);
-        }
-
-        header-clicked(col) => AppState.file-header-clicked(col);
-        row-clicked(row, ctrl, shift) => AppState.file-clicked(row, ctrl, shift);
-        row-activated(row) => AppState.file-activated(row);
-        context-requested(row, x, y) => root.file-context-requested(row, x,y);
-        // context-requested(row, x, y) => AppState.file-context-requested(row, x,y);
+    LabelFilterList {
+        width: 220px;
+        labels: AppState.labels;
+        stepped(row, toward-include) => AppState.label-stepped(row, toward-include);
+        reset-filters => AppState.label-filters-reset();
+        exclude-all => AppState.label-filters-exclude-all();
+        add-label(name) => AppState.label-add-requested(name);
     }
 }

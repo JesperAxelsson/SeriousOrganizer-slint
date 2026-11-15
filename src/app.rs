@@ -14,6 +14,7 @@ use crate::controllers::rename::RenameController;
 use crate::controllers::table::{TableController, TableKind};
 use crate::entry_model_list::EntryModelList;
 use crate::file_model_list::FileModelList;
+use crate::label_model_list::LabelModelList;
 use crate::{AppState, AppWindow};
 
 macro_rules! handler {
@@ -34,6 +35,7 @@ pub struct App {
     pub entry_table: TableController<EntryKind>,
     pub file_table: TableController<FileKind>,
     pub location: Rc<LocationKind>,
+    pub labels: Rc<LabelModelList>,
 
     rename: Rc<RenameController>,
     context: Rc<ContextController>,
@@ -83,6 +85,7 @@ impl App {
                 }),
             ),
             location: Rc::new(LocationKind::new(lens.clone())),
+            labels: Rc::new(LabelModelList::new(lens.clone())),
             context: context,
             rename: rename,
             confirm: confirm,
@@ -125,6 +128,12 @@ impl App {
 
         // Confirm Dialog
         ui.on_confirm_answered(handler!(self.confirm.answered(yes, request)));
+
+        // Label
+        state.on_label_stepped(handler!(self.on_label_stepped(row, toward_include)));
+        state.on_label_add_requested(handler!(self.on_label_add(name)));
+        state.on_label_filters_reset(handler!(self.labels.clear_filters()));
+        state.on_label_filters_exclude_all(handler!(self.labels.exclude_all()));
     }
 
     // ** Search handler ***
@@ -139,5 +148,33 @@ impl App {
             self.entry_table.kind.refresh();
             self.file_table.kind.refresh();
         });
+    }
+
+    fn on_label_stepped(&self, row: i32, toward_include: bool) {
+        if row < 0 {
+            return;
+        }
+
+        let Some(ui) = self.ui.upgrade() else {
+            return;
+        };
+
+        let state = ui.global::<AppState>();
+
+        self.entry_table.keep_current(&state, || {
+            if self.labels.step(row as usize, toward_include) {
+                self.entry_table.kind.refresh();
+                self.file_table.kind.refresh();
+            }
+        });
+    }
+
+    fn on_label_add(&self, name: SharedString) {
+        if !self.labels.add(&name) {
+            self.confirm.notify(
+                "Label not added",
+                &format!("A label named '{name}' already exists."),
+            );
+        }
     }
 }
