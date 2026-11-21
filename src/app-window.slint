@@ -36,6 +36,9 @@ export {
 export { AppState } from "state.slint";
 
 export component AppWindow inherits Window {
+    title: "SeriousOrganizer";
+    icon: @image-url("../assets/SerousIcon.png");
+
     // Tab handling
     property <int> active-tab: 0;
 
